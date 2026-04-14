@@ -1,0 +1,21 @@
+<div class="device-controls">
+    {% if 'ip' in dev %}
+    <div class="control-group">
+        <label>Địa chỉ IP</label>
+        <div class="fixed-value">{{ dev.ip }}</div>
+    </div>
+    <div class="control-group">
+        <label>Cổng (Port)</label>
+        <div class="fixed-value">{{ dev.port }}</div>
+    </div>
+    {% else %}
+    <div class="control-group">
+        <label>Cổng COM</label>
+        <div class="fixed-value">{{ dev.COM }}</div>
+    </div>
+    <div class="control-group">
+        <label>Baudrate</label>
+        <div class="fixed-value">{{ dev.baudrate }}</div>
+    </div>
+    {% endif %}
+</div>

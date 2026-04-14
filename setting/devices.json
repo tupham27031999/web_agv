@@ -1,0 +1,22 @@
+{
+    "lidar1": {
+        "ip": "192.168.0.6",
+        "port": 8010
+    },
+    "lidar2": {
+        "ip": "192.168.0.7",
+        "port": 8023
+    },
+    "esp32": {
+        "COM": "COM5",
+        "baudrate": 115200
+    },
+    "driver_motor": {
+        "COM": "COM3",
+        "baudrate": 115200
+    },
+    "pin": {
+        "COM": "COM5",
+        "baudrate": 9600
+    }
+}

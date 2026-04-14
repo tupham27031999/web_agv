@@ -1,0 +1,46 @@
+sync_from_master:
+
+Thêm AGVConfig.is_syncing = True ở đầu và finally: AGVConfig.is_syncing = False ở cuối để bật/tắt cờ đồng bộ, giúp giao diện hiển thị overlay.
+Trước khi tải file, tạo một thư mục backup mới với tên là timestamp (YYYYMMDD_HHMMSS) trong AGVConfig.path_backup.
+Khi một file được tải về, nếu file gốc đã tồn tại, nó sẽ được sao chép vào thư mục backup vừa tạo.
+Thông tin về file đã backup (tên file và đường dẫn tương đối gốc) được lưu vào một danh sách backup_manifest_entries.
+Sau khi tất cả các file đã được xử lý, một file backup_manifest.json sẽ được tạo trong thư mục backup đó, chứa timestamp và files_backed_up. Điều này giúp chúng ta biết chính xác file nào đã được sao lưu và đường dẫn gốc của chúng.
+@app.route('/api/list_backups'):
+
+API này quét thư mục AGVConfig.path_backup.
+Với mỗi thư mục con (là một bản sao lưu), nó cố gắng đọc file backup_manifest.json để lấy thông tin chi tiết về các file đã sao lưu.
+Nếu không tìm thấy backup_manifest.json (ví dụ: các bản backup cũ hơn không có), nó sẽ liệt kê tất cả các file trong thư mục đó và giả định đường dẫn gốc là tên file.
+Kết quả trả về là một danh sách các đối tượng JSON, mỗi đối tượng đại diện cho một bản sao lưu.
+@app.route('/api/restore_backup', methods=['POST']):
+
+API này nhận timestamp, filename và original_target_rel_path từ frontend.
+Nó xác định đường dẫn của file backup (source_path) và đường dẫn đích để khôi phục (destination_path).
+Sử dụng shutil.copy2 để sao chép file backup về vị trí gốc.
+Nếu file được khôi phục là log_odds.npy, nó sẽ gọi AGVConfig.reload_map() để cập nhật bản đồ ngay lập tức.
+2. home.html (Client):
+
+Thêm một div mới với class device-card trong settingTab để chứa phần "Quản lý sao lưu".
+Bên trong có một nút "Tải danh sách sao lưu" để kích hoạt việc hiển thị các bản sao lưu.
+Một div với ID backup-list-container sẽ là nơi hiển thị danh sách các bản sao lưu.
+Thêm một modal-overlay mới với ID backup-detail-modal để hiển thị chi tiết các file trong một bản sao lưu cụ thể.
+3. style.css (Client):
+
+Thêm các style cơ bản cho backup-card-item và backup-file-item để giao diện hiển thị rõ ràng và dễ nhìn.
+4. script.js (Client):
+
+loadBackupList():
+
+Gửi yêu cầu GET đến /api/list_backups.
+Duyệt qua dữ liệu nhận được và tạo các div backup-card-item trong backup-list-container.
+Mỗi backup-card-item sẽ có một nút "Xem chi tiết file" để mở modal hiển thị các file bên trong.
+showBackupDetails(timestamp, files):
+
+Hàm này được gọi khi nhấn nút "Xem chi tiết file".
+Nó điền thông tin timestamp và danh sách file vào backup-detail-modal.
+Mỗi file sẽ có một nút "Khôi phục" riêng.
+restoreFile(timestamp, filename, original_target_rel_path):
+
+Hàm này được gọi khi nhấn nút "Khôi phục" cho một file cụ thể.
+Nó hiển thị hộp thoại xác nhận.
+Gửi yêu cầu POST đến /api/restore_backup với các thông tin cần thiết.
+Hiển thị thông báo kết quả và tải lại trang nếu file bản đồ được khôi phục.

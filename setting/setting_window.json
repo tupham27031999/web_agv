@@ -1,0 +1,76 @@
+{
+    "name_agv": "agv1",
+    "rmse_max": 280,
+    "rmse_stop": 250,
+    "rmse_warn": 200,
+    "alpha_scan": [55, 307],
+    "loai_lidar": "ethernet",
+    "khoang_cach_duong_di": 10,
+    "khoang_cach_dich": 20,
+    "duong_kinh_coc": 50,
+    "min_samples": 1,
+    "thiet_lap_ket_noi": {"lidar": "off", "driver_motor": "off", "esp32": "off", "pin": "off", "process_lidar": "on"},
+
+
+    "cong_esp32": ["/dev/esp32_loa", 115200],
+    "cong_lidar": ["/dev/ttyUSB1", 256000],
+    "cong_driver": ["/dev/driver_motor", 115200],
+
+    "loa": "JBL Go 3",
+    
+    "com_pin": ["/dev/pin", 9600],
+    "vol_min": 24.5,
+    "vol_max": 28.4,
+
+    "host": "0.0.0.0",
+    "port": 5001,
+    "host_lidar_1": "192.168.0.10",
+    "port_lidar_1": 2368,
+    "host_lidar_2": "192.168.0.11",
+    "port_lidar_2": 2369,
+
+    "chu_thich_khong_xe": "-------------------------------------------------------- Khong xe -----------------------------------------",
+    "khoang_cach_an_toan_tren_re": [500, 500, 500],
+    "khoang_cach_an_toan_ben_canh_re": [500, 700, 800],
+    "khoang_cach_an_toan_duoi_re": [500, 500, 500],
+
+    "khoang_cach_an_toan_tren": [780, 1200, 1400],
+    "khoang_cach_an_toan_ben_canh": [390, 410, 440],
+    "khoang_cach_an_toan_duoi": [520, 520, 520],
+
+    "chu_thich_nang": "-------------------------------------------------------- nang xe -----------------------------------------",
+    "khoang_cach_an_toan_tren_nang": [550, 500, 550],
+    "khoang_cach_an_toan_ben_canh_nang": [390, 410, 440],
+    "khoang_cach_an_toan_duoi_nang": [550, 550, 550],
+
+    "chu_thich_co_xe": "-------------------------------------------------------- co xe -----------------------------------------",
+    "khoang_cach_an_toan_tren_xe": [1350, 1600, 1800],
+    "khoang_cach_an_toan_ben_canh_xe": [380, 410, 440],
+    "khoang_cach_an_toan_duoi_xe": [900, 900, 900],
+
+    "khoang_cach_an_toan_tren_xe_re": [1000, 1000, 1000],
+    "khoang_cach_an_toan_ben_canh_xe_re": [540, 700, 800],
+    "khoang_cach_an_toan_duoi_xe_re": [1000, 1000, 1000],
+
+    "chu_thich_tools_xe": "-------------------------------------------------------- tools xe -----------------------------------------",
+    "khoang_cach_an_toan_tren_tools": [1000, 1000, 1000],
+    "khoang_cach_an_toan_ben_canh_tools": [320, 320, 320],
+    "khoang_cach_an_toan_duoi_tools": [1000, 1000, 1000],
+
+    
+
+    "chieu_ngang_xe": 530,
+    "chieu_doc_xe": 810,
+
+    "distance_max": 1200,
+    "distan_scan_all": [0, 10000],
+    
+    "khoang_cach_dich_min": 50,
+    "vung_xe": [[-550,-930,550,930]],
+    "time_reset_dung_hoat_dong": 4,
+
+    "phan_tram_pin_can_di_sac": 20,
+    "van_toc_an_toan": {"vung_1": {"van_toc_tien": 0, "van_toc_re": 0},
+                       "vung_2": {"van_toc_tien": 3000, "van_toc_re": 500},
+                       "vung_3": {"van_toc_tien": 5000, "van_toc_re": 600}}
+}

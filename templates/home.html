@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ config.ten_dieu_de }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Thư viện icon FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Favicon từ logo -->
+    <link rel="icon" href="{{ url_for('static', filename='logo.png') }}">
+    <!-- Thư viện OpenSeadragon Local -->
+    <script src="{{ url_for('static', filename='openseadragon/openseadragon.min.js') }}"></script>
+    
+</head>
+<body>
+    <!-- Thanh tiêu đề -->
+    <div class="app-header">
+        <div class="header-left">
+            <!-- Logo từ thư mục static -->
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="AGV Logo" class="app-logo">
+            <div class="header-info">
+                <h1 class="app-title">{{ config.ten_dieu_de }}</h1>
+                <span class="app-version">Version: {{ config.VERSION }}</span>
+            </div>
+        </div>
+        <div class="header-center">
+            <div class="header-tabs">
+                <button class="tab-btn active" onclick="openTab(event, 'homeTab')">
+                    <i class="fa-solid fa-house"></i> {{ config.tab_1 }}
+                </button>
+                <button class="tab-btn" onclick="openTab(event, 'mappingTab')">
+                    <i class="fa-solid fa-map-location-dot"></i> {{ config.tab_3 }}
+                </button>
+                <button class="tab-btn" onclick="openTab(event, 'settingTab')">
+                    <i class="fa-solid fa-gear"></i> {{ config.tab_2 }}
+                </button>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="battery-status">
+                <i id="battery-icon" class="fa-solid fa-battery-three-quarters"></i>
+                <span id="battery-percent">{{ config.phan_tram_pin }}%</span>
+                <!-- Icon Trạm Sạc -->
+                <i id="charging-icon" class="fa-solid fa-charging-station {{ 'active' if config.sac_pin else '' }}" 
+                   onclick="toggleCharging()" title="Sạc Pin" style="cursor: pointer; margin-left: 10px;"></i>
+            </div>
+            <!-- Icon Tắt AGV -->
+            <div class="system-controls" style="margin-left: 20px;">
+                <i class="fa-solid fa-power-off" onclick="shutdownAGV()" title="Tắt AGV" 
+                   style="cursor: pointer; font-size: 1.3rem; color: #bdc3c7; transition: color 0.3s;"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nội dung các Tab -->
+    <div class="tab-container">
+        <!-- Tab 1: Home/Map -->
+        <div id="homeTab" class="tab-content active">
+            <div class="main-layout">
+                <!-- Phần hiển thị bản đồ -->
+                <div id="osd-viewer" class="map-view"></div>
+                
+                <!-- Thanh công cụ bên phải -->
+                <div class="side-toolbar">
+                    <div class="toolbar-header">
+                        <i class="fa-solid fa-screwdriver-wrench"></i> Chức năng
+                    </div>
+                    <div class="button-list">
+                        <!-- Nút Run/Stop -->
+                        <button id="btn-run-stop" 
+                                class="action-btn {{ 'btn-stop' if config.run_state == 1 else 'btn-run' }}" 
+                                onclick="toggleRunStop()">
+                            <i class="fa-solid {{ 'fa-circle-stop' if config.run_state == 1 else 'fa-play' }}"></i>
+                            <span>{{ 'STOP' if config.run_state == 1 else 'RUN' }}</span>
+                        </button>
+
+                        <!-- Nút Loa -->
+                        <button id="btn-speaker" class="action-btn btn-speaker" onclick="triggerSpeaker()">
+                            <i class="fa-solid fa-volume-high"></i>
+                            <span>Loa thông báo</span>
+                        </button>
+
+                        <!-- Nút Motor ON/OFF -->
+                        <button id="btn-motor" 
+                                class="action-btn {{ 'btn-motor-on' if config.motor_state else 'btn-motor-off' }}" 
+                                onclick="toggleMotor()">
+                            <i class="fa-solid fa-engine"></i>
+                            <i class="fa-solid {{ 'fa-toggle-on' if config.motor_state else 'fa-toggle-off' }}"></i>
+                            <span>Motor: {{ 'ON' if config.motor_state else 'OFF' }}</span>
+                        </button>
+
+                        <!-- Nút Ẩn/Hiện Lidar -->
+                        <button id="btn-toggle-lidar" 
+                                class="action-btn {{ 'btn-lidar-on' if config.an_hien_diem_lidar_icp else 'btn-lidar-off' }}" 
+                                onclick="toggleLidarView(event)">
+                            <i class="fa-solid {{ 'fa-eye' if config.an_hien_diem_lidar_icp else 'fa-eye-slash' }}"></i>
+                            <span>Hiện điểm Lidar</span>
+                        </button>
+
+                        <hr class="separator">
+
+                        <!-- Combobox Vận tốc tiến -->
+                        <div class="control-group">
+                            <label for="velocity-forward"><i class="fa-solid fa-arrow-up"></i> Vận tốc tiến lớn nhất</label>
+                            <select id="velocity-forward" onchange="updateVelocity('van_toc_tien_max', this.value)">
+                                {% for v in config.danh_sach_tien_max %}
+                                <option value="{{ v }}" {{ 'selected' if v == config.van_toc_tien_max }}>{{ v }} mm/s</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Combobox Vận tốc rẽ -->
+                        <div class="control-group">
+                            <label for="velocity-turn"><i class="fa-solid fa-rotate-right"></i> Vận tốc rẽ lớn nhất</label>
+                            <select id="velocity-turn" onchange="updateVelocity('van_toc_re_max', this.value)">
+                                {% for v in config.danh_sach_re_max %}
+                                <option value="{{ v }}" {{ 'selected' if v == config.van_toc_re_max }}>{{ v }} mm/s</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <hr class="separator">
+
+                        <!-- Nhóm Bản đồ -->
+                        <div class="control-section">
+                            <div class="section-title">Bản đồ</div>
+                            <div class="control-group">
+                                <select onchange="updateConfig('ten_ban_do', this.value)">
+                                    <option value="" disabled {{ 'selected' if not config.ten_ban_do }}>-- Chọn bản đồ --</option>
+                                    {% for bd in config.danh_sach_ban_do %}
+                                    <option value="{{ bd }}" {{ 'selected' if bd == config.ten_ban_do }}>{{ bd }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Nhóm Quản lý Điểm -->
+                        <div class="control-section">
+                            <div class="section-title">Quản lý Điểm</div>
+                            <div class="btn-grid">
+                                <button id="btn-add-point" class="sub-btn {{ 'btn-active' if config.che_do_them_diem }}" onclick="toggleAddPointMode()">
+                                    <i class="fa-solid fa-location-dot"></i> Thêm
+                                </button>
+                                <button id="btn-edit-point" class="sub-btn {{ 'btn-active' if config.che_do_sua_diem }}" onclick="toggleEditPointMode()">
+                                    <i class="fa-solid fa-pen-to-square"></i> Sửa
+                                </button>
+                            </div>
+                            <div class="input-with-btn">
+                                <input type="text" id="point-list-name" placeholder="Tên DS điểm mới...">
+                                <button class="save-btn" onclick="savePoints()"><i class="fa-solid fa-floppy-disk"></i></button>
+                            </div>
+                            <div class="control-group">
+                                <select onchange="updateConfig('ten_danh_sach_diem', this.value)">
+                                    {% for ds in config.danh_sach_folder_diem %}
+                                    <option value="{{ ds }}" {{ 'selected' if ds == config.ten_danh_sach_diem }}>{{ ds }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Nhóm Quản lý Đường -->
+                        <div class="control-section">
+                            <div class="section-title">Quản lý Đường</div>
+                            <div class="btn-grid">
+                                <button id="btn-add-path" class="sub-btn {{ 'btn-active' if config.che_do_them_duong }}" onclick="toggleAddPathMode()">
+                                    <i class="fa-solid fa-route"></i> Thêm
+                                </button>
+                                <button id="btn-del-path" class="sub-btn {{ 'btn-active' if config.che_do_xoa_duong }}" onclick="toggleDelPathMode()">
+                                    <i class="fa-solid fa-eraser"></i> Xóa
+                                </button>
+                            </div>
+                            <div class="control-group" style="margin-top: 5px;">
+                                <label class="radio-label">
+                                    <input type="checkbox" id="check-is-curve">
+                                    <span>Chế độ đường cong</span>
+                                </label>
+                            </div>
+                            <div class="input-with-btn">
+                                <input type="text" id="path-list-name" placeholder="Tên DS đường mới...">
+                                <button class="save-btn" onclick="savePaths()"><i class="fa-solid fa-floppy-disk"></i></button>
+                            </div>
+                            <div class="control-group">
+                                <select onchange="updateConfig('ten_danh_sach_duong', this.value)">
+                                    {% for ds in config.danh_sach_folder_duong %}
+                                    <option value="{{ ds }}" {{ 'selected' if ds == config.ten_danh_sach_duong }}>{{ ds }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Nhóm Vị trí thủ công -->
+                        <div class="control-section">
+                            <div class="section-title">Vị trí thủ công</div>
+                            <div class="manual-pos-inputs">
+                                <div class="input-row">
+                                    <label>X:</label> <input type="number" id="man-x" onchange="syncManualPos()">
+                                </div>
+                                <div class="input-row">
+                                    <label>Y:</label> <input type="number" id="man-y" onchange="syncManualPos()">
+                                </div>
+                                <div class="input-row">
+                                    <label>Góc:</label> <input type="number" id="man-h" onchange="syncManualPos()">
+                                </div>
+                            </div>
+                            <div class="btn-grid">
+                                <button id="btn-adjust-pos" class="sub-btn" onclick="toggleAdjustPosMode()">
+                                    <i class="fa-solid fa-crosshairs"></i> Điều chỉnh
+                                </button>
+                                <button id="btn-confirm-pos" class="sub-btn btn-confirm" onclick="confirmManualPos()">
+                                    <i class="fa-solid fa-check-double"></i> Cập nhật
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Nhóm Loại bỏ chân xe -->
+                        <div class="control-section">
+                            <div class="section-title">Loại bỏ chân xe</div>
+                            <button id="btn-lidar-sample" class="sub-btn {{ 'btn-active' if config.loai_bo_coc_xe.che_do_lay_mau == 1 }}"
+                                    onclick="toggleLidarSampling(event)">
+                                <i class="fa-solid fa-microscope"></i> Lấy mẫu chân xe
+                            </button>
+                            
+                            <button id="btn-lidar-edit" class="sub-btn" onclick="toggleLidarEditMode()">
+                                <i class="fa-solid fa-pen-ruler"></i> Chỉnh sửa mẫu chân xe
+                            </button>
+
+                            <button id="btn-temp-reset-lidar" class="sub-btn {{ 'btn-active' if config.tam_thoi_reset_vung_loai_bo }}"
+                                    onclick="toggleTempResetLidar(event)">
+                                <i class="fa-solid fa-eraser"></i> Tạm thời xóa vùng
+                            </button>
+
+                            <div id="lidar-edit-container" class="lidar-edit-grid" style="display: none;"></div>
+                            
+                            <div class="input-with-btn">
+                                <input type="text" id="lidar-file-name" placeholder="Tên file chân xe...">
+                                <button class="save-btn" onclick="saveLidarZone()"><i class="fa-solid fa-floppy-disk"></i></button>
+                            </div>
+                            <div class="control-group">
+                                <select id="select-lidar-zone" onchange="loadLidarZone(this.value)">
+                                    <option value="" disabled {{ 'selected' if not config.loai_bo_coc_xe.ten_vung_loai_bo }}>-- Chọn vùng đã lưu --</option>
+                                    {% for v in config.danh_sach_vung_loai_bo %}
+                                    <option value="{{ v }}" {{ 'selected' if v == config.loai_bo_coc_xe.ten_vung_loai_bo }}>{{ v }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Nhóm Kiểm tra xe -->
+                        <div class="control-section">
+                            <button id="btn-check-pos" class="sub-btn {{ 'btn-active' if config.kiem_tra_vi_tri_xe }}" onclick="toggleCheckPos(event)">
+                                <i class="fa-solid fa-truck-ramp-box"></i> Kiểm tra vị trí xe
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Mapping (Canvas) -->
+        <div id="mappingTab" class="tab-content">
+            <div class="main-layout">
+                <!-- Container chứa Canvas phân lớp: Lớp bản đồ và Lớp UI (AGV/Lidar) -->
+                <div class="mapping-view-container">
+                    <div class="canvas-wrapper">
+                        <canvas id="mapping-canvas"></canvas>
+                        <canvas id="mapping-ui-canvas"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Thanh công cụ riêng cho Mapping -->
+                <div class="side-toolbar">
+                    <div class="toolbar-header">
+                        <i class="fa-solid fa-map"></i> Mapping Tools
+                    </div>
+                    <div class="button-list">
+                        <!-- Nhóm Điều khiển thủ công/tự động -->
+                        <div class="control-section">
+                            <div class="section-title">Chế độ điều khiển</div>
+                            <div class="radio-group">
+                                <label class="radio-label">
+                                    <input type="radio" name="control-mode" value="auto" 
+                                           {{ 'checked' if not config.dieu_khien_agv.dieu_khien_thu_cong }} 
+                                           onchange="setControlMode(false)">
+                                    <span>Tự động</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="control-mode" value="manual" 
+                                           {{ 'checked' if config.dieu_khien_agv.dieu_khien_thu_cong }}
+                                           onchange="setControlMode(true)">
+                                    <span>Thủ công</span>
+                                </label>
+                            </div>
+
+                            <div id="manual-control-pad" class="control-pad" style="{{ 'display: flex;' if config.dieu_khien_agv.dieu_khien_thu_cong else 'display: none;' }}">
+                                <div class="pad-row">
+                                    <button class="pad-btn" id="ctrl-tien" onmousedown="updateDirection('tien', 1)" onmouseup="updateDirection('tien', 0)" onmouseleave="updateDirection('tien', 0)"><i class="fa-solid fa-caret-up"></i></button>
+                                </div>
+                                <div class="pad-row">
+                                    <button class="pad-btn" id="ctrl-trai" onmousedown="updateDirection('trai', 1)" onmouseup="updateDirection('trai', 0)" onmouseleave="updateDirection('trai', 0)"><i class="fa-solid fa-caret-left"></i></button>
+                                    <button class="pad-btn" id="ctrl-lui" onmousedown="updateDirection('lui', 1)" onmouseup="updateDirection('lui', 0)" onmouseleave="updateDirection('lui', 0)"><i class="fa-solid fa-caret-down"></i></button>
+                                    <button class="pad-btn" id="ctrl-phai" onmousedown="updateDirection('phai', 1)" onmouseup="updateDirection('phai', 0)" onmouseleave="updateDirection('phai', 0)"><i class="fa-solid fa-caret-right"></i></button>
+                                </div>
+                                <!-- Các nút chức năng bổ sung dạng chữ -->
+                                <div class="manual-actions-list" style="width: 100%; margin-top: 15px; display: flex; flex-direction: column; gap: 8px;">
+                                    <button id="ctrl-nang_xe" class="sub-btn" onclick="toggleManualAction('nang_xe')">Nâng xe</button>
+                                    <button id="ctrl-ha_xe" class="sub-btn" onclick="toggleManualAction('ha_xe')">Hạ xe</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="control-section">
+                            <div class="section-title">Trạng thái Mapping</div>
+                            <div class="btn-grid">
+                                <button id="btn-tao-moi" class="sub-btn {{ 'btn-active' if config.tao_ban_do_moi }}" onclick="selectMappingMode('tao_ban_do_moi')">
+                                    <i class="fa-solid fa-file-circle-plus"></i> Tạo mới
+                                </button>
+                                <button id="btn-chinh-sua" class="sub-btn {{ 'btn-active' if config.chinh_sua_ban_do }}" onclick="selectMappingMode('chinh_sua_ban_do')">
+                                    <i class="fa-solid fa-file-pen"></i> Chỉnh sửa
+                                </button>
+                            </div>
+
+                            <div id="mapping-mode-controls" class="mapping-active-controls" style="{{ 'display: flex; margin-top: 10px;' if (config.tao_ban_do_moi or config.chinh_sua_ban_do) else 'display: none;' }}">
+                                <button id="btn-create-map-mode-tab" class="action-btn {{ 'btn-run' if not config.che_do_tao_ban_do else 'btn-stop' }}" 
+                                        onclick="toggleCreateMapMode()">
+                                    <i class="fa-solid fa-satellite"></i>
+                                    <span>{{ 'Bắt đầu quét' if not config.che_do_tao_ban_do else 'Dừng quét' }}</span>
+                                </button>
+
+                                <div id="mapping-active-controls" class="mapping-active-controls" style="{{ 'display: flex;' if config.che_do_tao_ban_do else 'display: none;' }}">
+                                    <button id="btn-pause-map-tab" class="action-btn btn-speaker" onclick="togglePauseCreateMap()">
+                                        <i class="fa-solid {{ 'fa-play' if config.trang_thai_tam_dung_tao_ban_do else 'fa-pause' }}"></i>
+                                        <span>{{ 'Tiếp tục' if config.trang_thai_tam_dung_tao_ban_do else 'Tạm dừng' }}</span>
+                                    </button>
+                                    
+                                    <div class="input-with-btn">
+                                        <input type="text" id="new-map-name-tab" 
+                                               placeholder="Nhập tên file..." 
+                                               onchange="updateNewMapName(this.value)" 
+                                               value="{{ config.ten_ban_do_moi }}">
+                                        <button class="save-btn" onclick="saveNewMap()" title="Gửi lệnh lưu bản đồ">
+                                            <i class="fa-solid fa-floppy-disk"></i>
+                                        </button>
+                                    </div>
+
+                                    <button id="btn-update-all-points" class="sub-btn {{ 'btn-active' if config.update_all_point_in_map }}" 
+                                            onclick="toggleUpdateAllPoints(event)" style="width: 100%; margin-top: 5px;">
+                                        <i class="fa-solid fa-draw-polygon"></i>
+                                        <span>Cập nhật tất cả điểm</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nhóm Xóa vùng bản đồ (Đã chuyển từ Home sang Mapping) -->
+                        <div class="control-section">
+                            <div class="section-title">Xóa vùng bản đồ</div>
+                            <div class="btn-grid">
+                                <button id="btn-select-delete-area" class="sub-btn" onclick="toggleDeleteAreaMode()">
+                                    <i class="fa-solid fa-vector-square"></i> Chọn vùng
+                                </button>
+                                <button id="btn-update-delete" class="sub-btn btn-confirm" onclick="updateDeleteArea(event)">
+                                    <i class="fa-solid fa-sync"></i> Cập nhật
+                                </button>
+                            </div>
+                            <button class="sub-btn" onclick="clearDeleteAreas()" style="margin-top: 5px; width: 100%;">
+                                <i class="fa-solid fa-trash-can"></i> Xóa tất cả vùng chọn
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Setting -->
+        <div id="settingTab" class="tab-content">
+            <div class="settings-container">
+                <div class="settings-grid">
+                    <!-- Lidar 1 Card -->
+                    <div class="device-card" id="card-lidar1">
+                        <div class="device-header">
+                            <i class="fa-solid fa-satellite-dish"></i>
+                            <h3>Lidar 1</h3>
+                            <span class="status-dot"></span>
+                        </div>
+                        <div class="device-body">
+                            <p class="status-message">None</p>
+                            {% set dev = config.lidar1 %}
+                            {% set dev_key = 'lidar1' %}
+                            {% include 'device_controls.html' %}
+                        </div>
+                    </div>
+
+                    <!-- Lidar 2 Card -->
+                    <div class="device-card" id="card-lidar2">
+                        <div class="device-header">
+                            <i class="fa-solid fa-satellite-dish"></i>
+                            <h3>Lidar 2</h3>
+                            <span class="status-dot"></span>
+                        </div>
+                        <div class="device-body">
+                            <p class="status-message">None</p>
+                            {% set dev = config.lidar2 %}
+                            {% set dev_key = 'lidar2' %}
+                            {% include 'device_controls.html' %}
+                        </div>
+                    </div>
+
+                    <!-- ESP32 Card -->
+                    <div class="device-card" id="card-esp32">
+                        <div class="device-header">
+                            <i class="fa-solid fa-microchip"></i>
+                            <h3>ESP32</h3>
+                            <span class="status-dot"></span>
+                        </div>
+                        <div class="device-body">
+                            <p class="status-message">None</p>
+                            {% set dev = config.esp32 %}
+                            {% set dev_key = 'esp32' %}
+                            {% include 'device_controls.html' %}
+                        </div>
+                    </div>
+                    
+                    <!-- Driver Motor Card -->
+                    <div class="device-card" id="card-driver_motor">
+                        <div class="device-header">
+                            <i class="fa-solid fa-gears"></i>
+                            <h3>Driver Motor</h3>
+                            <span class="status-dot"></span>
+                        </div>
+                        <div class="device-body">
+                            <p class="status-message">None</p>
+                            {% set dev = config.driver_motor %}
+                            {% set dev_key = 'driver_motor' %}
+                            {% include 'device_controls.html' %}
+                        </div>
+                    </div>
+
+                    <!-- Pin Card -->
+                    <div class="device-card" id="card-pin">
+                        <div class="device-header">
+                            <i class="fa-solid fa-battery-full"></i>
+                            <h3>Pin</h3>
+                            <span class="status-dot"></span>
+                        </div>
+                        <div class="device-body">
+                            <p class="status-message">None</p>
+                            {% set dev = config.pin %}
+                            {% set dev_key = 'pin' %}
+                            {% include 'device_controls.html' %}
+                        </div>
+                    </div>
+
+                    <!-- Connection Settings Card -->
+                    <div class="device-card">
+                        <div class="device-header">
+                            <i class="fa-solid fa-network-wired"></i>
+                            <h3>Thiết lập kết nối</h3>
+                        </div>
+                        <div class="device-body">
+                            <div class="device-controls">
+                                {% for key, val in config.thiet_lap_ket_noi.items() %}
+                                <div class="control-group" style="flex-direction: row; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                    <label style="text-transform: capitalize;">{{ key | replace('_', ' ') }}</label>
+                                    <span class="status-value {{ 'status-on' if val == 'on' else 'status-off' }}">{{ val | upper }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Backup Management Card -->
+                    <div class="device-card">
+                        <div class="device-header">
+                            <i class="fa-solid fa-cloud-arrow-up"></i>
+                            <h3>Quản lý sao lưu</h3>
+                        </div>
+                        <div class="device-body">
+                            <p>Phiên bản hiện tại: <span class="status-value status-on">{{ config.VERSION }}</span></p>
+                            <button class="action-btn btn-run" onclick="loadBackupList()">
+                                <i class="fa-solid fa-arrows-rotate"></i> Tải danh sách sao lưu
+                            </button>
+                            <div id="backup-list-container" style="margin-top: 15px;">
+                                <p class="text-muted">Chưa có bản sao lưu nào được tải.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal để hiển thị chi tiết file trong bản sao lưu -->
+    <div id="backup-detail-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Chi tiết bản sao lưu <span id="modal-backup-timestamp"></span></h3>
+            <div id="modal-backup-files" class="modal-body"></div>
+            <div class="modal-footer"><button class="modal-btn cancel" onclick="closeBackupDetailModal()">Đóng</button></div>
+        </div>
+    </div>
+
+    <!-- Overlay Thông báo Đồng bộ hóa -->
+    <div id="sync-overlay" class="modal-overlay" style="display: none; flex-direction: column; background: rgba(0,0,0,0.85); color: white; text-align: center;">
+        <div class="sync-modal-content">
+            <i class="fa-solid fa-cloud-arrow-down fa-spin" style="font-size: 4rem; color: #3498db; margin-bottom: 20px;"></i>
+            <h2 style="margin: 0;">Đang đồng bộ dữ liệu...</h2>
+            <p style="color: #bdc3c7;">Hệ thống đang cập nhật file từ Server. Vui lòng không tắt máy hoặc vận hành AGV.</p>
+        </div>
+    </div>
+
+    <!-- Modal Nhập Thông Tin Điểm -->
+    <div id="point-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Thông tin điểm</h3>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label>Tên điểm:</label>
+                    <input type="text" id="m-point-name" placeholder="Ví dụ: P1">
+                </div>
+                <div class="input-group">
+                    <label>Tọa độ (X, Y):</label>
+                    <div class="coord-inputs">
+                        <input type="number" id="m-point-x">
+                        <input type="number" id="m-point-y">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Loại điểm:</label>
+                    <select id="m-point-type" onchange="toggleHeadingInput(this.value)">
+                        <option value="không hướng">Không hướng</option>
+                        <option value="có hướng">Có hướng</option>
+                    </select>
+                </div>
+                <div id="heading-group" class="input-group" style="display: none;">
+                    <label>Góc (Ox):</label>
+                    <input type="number" id="m-point-heading" value="0.0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="m-btn-delete" class="modal-btn delete" onclick="deletePoint()" style="display: none;">Xóa điểm</button>
+                <button class="modal-btn cancel" onclick="closePointModal()">Hủy</button>
+                <button class="modal-btn save" onclick="saveNewPoint()">Lưu điểm</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Nhúng dữ liệu điểm ban đầu từ Server vào Client để dùng trong script.js
+        window.pointsCache = {{ config.danh_sach_diem | tojson }};
+        window.pathsCache = {{ config.danh_sach_duong | tojson }};
+        window.initialAddMode = {{ config.che_do_them_diem | tojson }};
+        window.initialEditMode = {{ config.che_do_sua_diem | tojson }};
+        window.initialAddPathMode = {{ config.che_do_them_duong | tojson }};
+        window.initialDelPathMode = {{ config.che_do_xoa_duong | tojson }};
+        window.deleteAreasCache = {{ config.xoa_vung_ban_do.vung_xoa | tojson }};
+        window.initialCreateMapMode = {{ config.che_do_tao_ban_do | tojson }};
+        window.isTaoMoi = {{ config.tao_ban_do_moi | tojson }};
+        window.isChinhSua = {{ config.chinh_sua_ban_do | tojson }};
+        window.mapWidth = {{ config.w_pixel }};
+        window.mapHeight = {{ config.h_pixel }};
+        window.mappingUpdateSize = {{ config.kich_thuoc_mapping_update | tojson }};
+        window.initialManualControl = {{ config.dieu_khien_agv | tojson }};
+        window.thoiGianCapNhat = {{ config.thoi_gian_cap_nhat | tojson }};
+        window.isCharging = {{ config.sac_pin | tojson }};
+        window.currentRunState = {{ config.run_state | tojson }};
+        window.currentMotorState = {{ config.motor_state | tojson }};
+    </script>
+    <!-- Scripts -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="{{ url_for('static', filename='openseadragon/map.js') }}"></script>
+</body>
+</html>
