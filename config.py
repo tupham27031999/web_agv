@@ -199,7 +199,7 @@ class AGVConfig:
     che_do_sua_diem = False
     che_do_them_duong = False
     che_do_xoa_duong = False
-    danh_sach_duong = {} # Format: {"P1_P2_C_P3": [["P1", "P2"], "curve", "P3"], ...}
+    danh_sach_duong = {} # Format: {"P1_P2": [["P1", "P2"], "curve", "P3"], ...}
     danh_sach_diem = {} # Format: {"P1": [x, y, "loai", huong], ...}
     # Lấy danh sách bản đồ bằng cách liệt kê các thư mục con trong path_map_folder
     danh_sach_ban_do = [d for d in os.listdir(path_map_folder) if os.path.isdir(os.path.join(path_map_folder, d))] if os.path.exists(path_map_folder) else []
@@ -331,6 +331,7 @@ class AGVConfig:
                 cls.danh_sach_diem = {}
         else:
             cls.danh_sach_diem = {}
+        
 
     @classmethod
     def save_points_to_file(cls, name):

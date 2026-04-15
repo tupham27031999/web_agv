@@ -181,7 +181,7 @@ window.handlePathCreation = function(clickedPointName, clickPos) {
     // Nếu đã có điểm 1 và 2, và đang ở chế độ đường cong
     if (isCurveMode) {
         const controlPointName = clickedPointName;
-        const name = `${firstPointForPath}_${secondPointForPath}_C_${controlPointName}`;
+        const name = `${firstPointForPath}_${secondPointForPath}`;
         addPathToServer(name, [firstPointForPath, secondPointForPath], controlPointName);
         firstPointForPath = null;
         secondPointForPath = null;
