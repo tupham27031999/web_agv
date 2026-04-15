@@ -455,29 +455,63 @@ document.addEventListener("DOMContentLoaded", function() {
 
         if (!pathPoints || pathPoints.length === 0) return;
 
-        // Tập hợp các điểm bao gồm cả vị trí AGV hiện tại
-        const fullPath = [[agvX, agvY], ...pathPoints];
-
-        for (let i = 0; i < fullPath.length - 1; i++) {
-            const p1 = fullPath[i];
-            const p2 = fullPath[i + 1];
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            line.setAttribute("x1", p1[0]); line.setAttribute("y1", p1[1]);
-            line.setAttribute("x2", p2[0]); line.setAttribute("y2", p2[1]);
-            line.setAttribute("class", "planned-path-line");
-            svg.appendChild(line);
+        // 1. Vẽ đường nối từ AGV đến điểm đầu tiên trong lộ trình (thường là đường thẳng)
+        const firstPtName = pathPoints[0];
+        const firstPtCoord = window.pointsCache[firstPtName];
+        if (firstPtCoord) {
+            const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            pathEl.setAttribute("d", `M ${agvX} ${agvY} L ${firstPtCoord[0]} ${firstPtCoord[1]}`);
+            pathEl.setAttribute("class", "planned-path-line");
+            svg.appendChild(pathEl);
         }
 
-        // Vẽ icon đích đến cuối cùng (màu đỏ)
-        const lastPt = pathPoints[pathPoints.length - 1];
-        const destIcon = document.createElement("div");
-        destIcon.id = "destination-target-marker";
-        destIcon.innerHTML = '<i class="fa-solid fa-location-dot" style="color: #e74c3c; font-size: 30px; filter: drop-shadow(0 0 2px white);"></i>';
-        viewer.addOverlay({
-            element: destIcon,
-            location: viewer.viewport.imageToViewportCoordinates(new OpenSeadragon.Point(lastPt[0], lastPt[1])),
-            placement: OpenSeadragon.Placement.BOTTOM // Đặt chân icon vào đúng tọa độ
-        });
+        // 2. Vẽ các đoạn đường giữa các điểm (Tra cứu xem là thẳng hay cong)
+        for (let i = 0; i < pathPoints.length - 1; i++) {
+            const p1Name = pathPoints[i];
+            const p2Name = pathPoints[i+1];
+            const p1 = window.pointsCache[p1Name];
+            const p2 = window.pointsCache[p2Name];
+            if (!p1 || !p2) continue;
+
+            const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            pathEl.setAttribute("class", "planned-path-line");
+
+            // Tìm thông tin đường trong cache (thử cả hai chiều P1_P2 hoặc P2_P1)
+            const pathInfo = window.pathsCache[`${p1Name}_${p2Name}`] || window.pathsCache[`${p2Name}_${p1Name}`];
+
+            if (pathInfo && pathInfo[1] === "curve" && pathInfo[2]) {
+                const controlPoint = pathInfo[2];
+                let cx, cy;
+                if (typeof controlPoint === 'string' && window.pointsCache[controlPoint]) {
+                    [cx, cy] = window.pointsCache[controlPoint];
+                } else if (Array.isArray(controlPoint)) {
+                    [cx, cy] = controlPoint;
+                }
+
+                if (cx !== undefined && cy !== undefined) {
+                    pathEl.setAttribute("d", `M ${p1[0]} ${p1[1]} Q ${cx} ${cy} ${p2[0]} ${p2[1]}`);
+                } else {
+                    pathEl.setAttribute("d", `M ${p1[0]} ${p1[1]} L ${p2[0]} ${p2[1]}`);
+                }
+            } else {
+                pathEl.setAttribute("d", `M ${p1[0]} ${p1[1]} L ${p2[0]} ${p2[1]}`);
+            }
+            svg.appendChild(pathEl);
+        }
+
+        // 3. Vẽ icon đích đến cuối cùng (màu đỏ)
+        const lastPtName = pathPoints[pathPoints.length - 1];
+        const lastPt = window.pointsCache[lastPtName];
+        if (lastPt) {
+            const destIcon = document.createElement("div");
+            destIcon.id = "destination-target-marker";
+            destIcon.innerHTML = '<i class="fa-solid fa-location-dot" style="color: #e74c3c; font-size: 30px; filter: drop-shadow(0 0 2px white);"></i>';
+            viewer.addOverlay({
+                element: destIcon,
+                location: viewer.viewport.imageToViewportCoordinates(new OpenSeadragon.Point(lastPt[0], lastPt[1])),
+                placement: OpenSeadragon.Placement.BOTTOM
+            });
+        }
     };
 
     /**

@@ -185,7 +185,9 @@ class AGVConfig:
 
     toa_do_agv_pixel = [1700, 2449]
     huong_agv_do_img = 30 # góc hợp với trục Ox
-    danh_sach_duong_di = [[1670, 2449], [1675, 2513], [1679, 2540]] # danh sách tọa độ agv sẽ đi đến 
+    danh_sach_duong_di = ["C20", "C21"] # danh sách tên các điểm agv sẽ đi qua
+    # danh_sach_duong_di mới
+    # danh_sach_duong_di = ["C20", "C21"]
     kich_thuoc_agv = [40,20] # pixel, dùng để vẽ hình chữ nhật đại diện cho AGV trên bản đồ
     kich_thuoc_mapping_update = [1000,1000]
 
