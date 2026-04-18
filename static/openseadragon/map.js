@@ -222,7 +222,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     // Hàm vẽ điểm (marker) lên OSD
-    window.addMarker = function(name, x, y, type, heading) {
+    window.addMarker = function(name, x, y, type, heading, aprilTag) {
         if (window.isCreateMapMode) return;
         
         const container = document.createElement("div");
@@ -241,6 +241,17 @@ document.addEventListener("DOMContentLoaded", function() {
             // CSS rotate quay theo chiều kim đồng hồ, hệ tọa độ Ox thường ngược lại nên dùng dấu trừ
             arrow.style.transform = `rotate(${-heading}deg)`;
             container.appendChild(arrow);
+        }
+
+        // Nếu điểm có gán AprilTag, hiển thị icon và ID
+        if (aprilTag) {
+            const tagParts = aprilTag.split('_');
+            const tagId = parseInt(tagParts[tagParts.length - 1]); // Lấy số cuối của tên file làm ID
+            
+            const tagIndicator = document.createElement("div");
+            tagIndicator.className = "marker-tag-indicator";
+            tagIndicator.innerHTML = `<i class="fa-solid fa-qrcode"></i><span>${tagId}</span>`;
+            container.appendChild(tagIndicator);
         }
 
         // Thêm nhãn tên điểm
@@ -312,7 +323,7 @@ document.addEventListener("DOMContentLoaded", function() {
         // Vẽ lại danh sách điểm mới từ cache
         Object.keys(points).forEach(name => {
             const d = points[name];
-            window.addMarker(name, d[0], d[1], d[2], d[3]);
+            window.addMarker(name, d[0], d[1], d[2], d[3], d[4]);
         });
     };
 

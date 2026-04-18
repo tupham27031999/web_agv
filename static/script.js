@@ -21,6 +21,10 @@ function openTab(event, tabId) {
     if (tabId === 'mappingTab') {
         initMappingCanvas();
     }
+    
+    if (tabId === 'codeTab') {
+        loadScriptList();
+    }
 }
 
 /**
@@ -957,13 +961,44 @@ function toggleEditPointMode() {
     postUpdate('che_do_them_diem', false);
 }
 
-function openPointModal(x, y, existingName = null) {
+async function openPointModal(x, y, existingName = null) {
     currentEditingName = existingName;
     const deleteBtn = document.getElementById('m-btn-delete');
     
     document.getElementById('m-point-x').value = Math.round(x);
     document.getElementById('m-point-y').value = Math.round(y);
     
+    // Tải danh sách tất cả AprilTag từ server
+    let allTags = [];
+    try {
+        const res = await fetch('/api/april_tags');
+        allTags = await res.json();
+    } catch (e) { console.error("Lỗi tải AprilTag:", e); }
+
+    // Tìm các tag đã được sử dụng bởi các điểm khác
+    const usedTags = [];
+    for (let pName in window.pointsCache) {
+        if (pName !== existingName && window.pointsCache[pName][4]) {
+            usedTags.push(window.pointsCache[pName][4]);
+        }
+    }
+
+    // Lọc danh sách: Chỉ hiện tag chưa dùng HOẶC tag đang của chính điểm này
+    const availableTags = allTags.filter(tag => !usedTags.includes(tag));
+
+    const tagSelect = document.getElementById('m-point-tag');
+    tagSelect.innerHTML = '<option value="">-- Không sử dụng --</option>';
+    availableTags.forEach(tag => {
+        const opt = document.createElement('option');
+        opt.value = tag;
+        opt.text = tag;
+        // Nếu đang sửa điểm, chọn đúng tag cũ của nó
+        if (existingName && window.pointsCache[existingName][4] === tag) {
+            opt.selected = true;
+        }
+        tagSelect.appendChild(opt);
+    });
+
     if (existingName && window.pointsCache[existingName]) {
         const data = window.pointsCache[existingName];
         document.getElementById('m-point-name').value = existingName;
@@ -997,6 +1032,7 @@ async function saveNewPoint() {
     const y = parseInt(document.getElementById('m-point-y').value);
     const type = document.getElementById('m-point-type').value;
     const heading = parseFloat(document.getElementById('m-point-heading').value);
+    const aprilTag = document.getElementById('m-point-tag').value;
 
     if (!name) return alert("Vui lòng nhập tên điểm");
 
@@ -1019,14 +1055,14 @@ async function saveNewPoint() {
     const response = await fetch('/api/add_point_temp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, info: [x, y, type, heading] })
+        body: JSON.stringify({ name, info: [x, y, type, heading, aprilTag] })
     });
 
     if (response.ok) {
-        window.pointsCache[name] = [x, y, type, heading];
+        window.pointsCache[name] = [x, y, type, heading, aprilTag];
         // Xóa marker cũ nếu có và vẽ lại
         if (window.removeMarker) window.removeMarker(name);
-        drawPointOnMap(name, x, y, type, heading);
+        drawPointOnMap(name, x, y, type, heading, aprilTag);
         closePointModal();
     }
 }
@@ -1055,9 +1091,8 @@ async function deletePoint() {
     }
 }
 
-function drawPointOnMap(name, x, y, type, heading) {
-    // Hàm này sẽ được gọi để tạo overlay trong OpenSeadragon
-    if (window.addMarker) window.addMarker(name, x, y, type, heading);
+function drawPointOnMap(name, x, y, type, heading, aprilTag) {
+    if (window.addMarker) window.addMarker(name, x, y, type, heading, aprilTag);
 }
 
 async function saveList(key, inputId, apiUrl) {
@@ -1476,6 +1511,151 @@ async function restoreFile(timestamp, filename, original_target_rel_path) {
     } catch (error) {
         console.error("Lỗi khi khôi phục file:", error);
         alert("Lỗi khi khôi phục file: " + error.message);
+    }
+}
+
+// --- Code Tab Functions ---
+let currentLoadedScript = null;
+
+async function loadScriptList() {
+    const res = await fetch('/api/code/list');
+    const scripts = await res.json();
+    const container = document.getElementById('script-list-container');
+    container.innerHTML = '';
+    
+    scripts.forEach(name => {
+        const div = document.createElement('div');
+        div.className = `script-item ${currentLoadedScript === name ? 'active' : ''}`;
+        div.innerText = name;
+        div.onclick = () => loadScriptContent(name);
+        container.appendChild(div);
+    });
+}
+
+async function loadScriptContent(name) {
+    const res = await fetch(`/api/code/load/${name}`);
+    const data = await res.json();
+    if (data.status === 'success') {
+        currentLoadedScript = name;
+        document.getElementById('script-name').value = name;
+        document.getElementById('code-textarea').value = data.content;
+        loadScriptList();
+    }
+}
+
+function createNewScript() {
+    currentLoadedScript = null;
+    document.getElementById('script-name').value = "";
+    document.getElementById('code-textarea').value = "";
+    loadScriptList();
+}
+
+async function saveCurrentScript() {
+    const name = document.getElementById('script-name').value.trim();
+    const content = document.getElementById('code-textarea').value;
+    
+    if (!name) return alert("Vui lòng nhập tên Script");
+    
+    const res = await fetch('/api/code/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, content })
+    });
+    
+    const result = await res.json();
+    if (result.status === 'success') {
+        currentLoadedScript = name;
+        alert("Đã lưu Script thành công!");
+        loadScriptList();
+    } else {
+        alert("Lỗi khi lưu Script:\n" + result.message);
+    }
+}
+
+async function toggleScriptExecution() {
+    const name = document.getElementById('script-name').value.trim();
+    const btn = document.getElementById('btn-run-script');
+    const isRunning = btn.classList.contains('btn-stop'); // Tận dụng class màu đỏ nếu đang chạy
+
+    if (!name) return alert("Chọn hoặc lưu script trước khi chạy");
+
+    const scriptToActivate = isRunning ? "" : name;
+    
+    const res = await fetch('/api/code/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: scriptToActivate })
+    });
+
+    const data = await res.json();
+    if (data.status === 'success') {
+        if (scriptToActivate) {
+            btn.innerHTML = '<i class="fa-solid fa-stop"></i>';
+            btn.style.backgroundColor = '#e74c3c';
+            btn.classList.add('btn-stop');
+        } else {
+            btn.innerHTML = '<i class="fa-solid fa-play"></i>';
+            btn.style.backgroundColor = '#3498db';
+            btn.classList.remove('btn-stop');
+        }
+    }
+}
+
+async function deleteCurrentScript() {
+    const name = document.getElementById('script-name').value.trim();
+    if (!name) return;
+    
+    if (!confirm(`Xóa script "${name}"?`)) return;
+    
+    const res = await fetch('/api/code/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+    });
+    
+    if ((await res.json()).status === 'success') {
+        createNewScript();
+        loadScriptList();
+    }
+}
+// --- Hỗ trợ phím Tab cho trình soạn thảo Code ---
+const codeArea = document.getElementById('code-textarea');
+if (codeArea) {
+    codeArea.addEventListener('keydown', function(e) {
+        if (e.key === 'Tab') {
+            e.preventDefault(); // Ngăn việc chuyển focus sang nút khác
+            
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+
+            // Chèn 4 khoảng trắng (chuẩn Python) vào vị trí con trỏ
+            const spaces = "    ";
+            this.value = this.value.substring(0, start) + spaces + this.value.substring(end);
+
+            // Đưa con trỏ về vị trí sau khi chèn khoảng trắng
+            this.selectionStart = this.selectionEnd = start + spaces.length;
+        }
+    });
+}
+
+async function generateAprilTag() {
+    const idInput = document.getElementById('new-tag-id');
+    const tagId = idInput.value.trim();
+    if (!tagId) return alert("Vui lòng nhập ID mã AprilTag");
+
+    const response = await fetch('/api/april_tags/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: tagId })
+    });
+
+    if (response.ok) {
+        alert("Đã tạo thành công mã AprilTag ID: " + tagId);
+        idInput.value = "";
+        // Lưu ý: Danh sách tag trong modal thông tin điểm sẽ tự cập nhật khi người dùng mở lại modal
+    } else {
+        const err = await response.json();
+        alert("Lỗi khi tạo mã: " + err.message);
     }
 }
 

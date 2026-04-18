@@ -80,8 +80,10 @@ path_folder_setting = remove.tao_folder(os.path.join(PATH_PHAN_MEM, "setting"))
 path_folder_log_giao_tiep = remove.tao_folder(os.path.join(PATH_PHAN_MEM, "data_input_output", "log_giao_tiep"))
 path_folder_upload = remove.tao_folder(os.path.join(PATH_PHAN_MEM, "update_phan_mem", "upload"))
 path_folder_dowload = remove.tao_folder(os.path.join(PATH_PHAN_MEM, "update_phan_mem", "download"))
+path_folder_scripts = remove.tao_folder(os.path.join(PATH_PHAN_MEM, "data_input_output", "scripts"))
 path_download_json = remove.tao_folder(os.path.join(PATH_PHAN_MEM, "update_phan_mem", "download.json"))
 path_backup = remove.tao_folder(os.path.join(PATH_PHAN_MEM, "data_backup"))
+path_ma_AprilTag = remove.tao_folder(os.path.join(PATH_PHAN_MEM, "data_input_output", "danh_sach_ma_AprilTag"))
 # C:\tupn\phan_mem\a_agv\code\cai_tien_web_agv\data_input_output\loai_bo_chan_xe
 
 
@@ -114,6 +116,63 @@ class AGVConfig:
     tab_1 = "Home"
     tab_2 = "Setting"
     tab_3 = "Mapping"
+    tab_4 = "Code"
+    
+    ten_script_dang_chay = "" # Script đang được chọn để thực thi logic
+    noi_dung_script_dang_chay = ""
+    du_lieu_script_dang_chay = {} # Lưu trữ toàn bộ object JSON của script đang chạy
+    stop_code_resume = False # Cờ báo hiệu script đang dừng đợi lệnh gọi API
+    id_april_tag_quet_duoc = None # Lưu ID thẻ AprilTag mới nhất quét được, để script có thể truy cập khi cần
+
+    nang_xe_code = None # Lưu trạng thái nâng xe để script có thể truy cập
+    ha_xe_code = None # Lưu trạng thái hạ xe để script có thể truy cập
+    music_name_code = None # Lưu tên nhạc đang phát nếu có, để script có thể truy cập khi cần
+    dung_trong_giay_code = None # Lưu trữ thời gian tạm dừng còn lại nếu script gọi hàm dung(giay)
+    xoay_goc_code = None # Lưu trữ góc xoay hiện tại nếu script gọi hàm xoay_goc(ang)
+    xoay_goc_mode_code = 0 # 0: Chỉ cần thân xe hợp với Ox, 1: Đầu xe phải hướng đúng góc
+    van_toc_tien_max_code = None
+    van_toc_re_max_code = None
+
+    vi_tri_code = None # Tên điểm hiện tại (string)
+    dich_den_code = None # Tên điểm đích (string)
+    trang_thai_code = None # 'cho_lenh', 'lay_hang', 'tra_hang', 'error'
+    april_tag_code = None # ID thẻ quét được (int)
+    xy_lanh_code = None # 'nang' hoặc 'ha'
+    khoang_cach_den_dich_code = None # mm
+
+    
+    # Cấu hình nội dung hướng dẫn trên giao diện Web (Linh hoạt)
+    huong_dan_code = {
+        "dau_vao": [
+            ("vi_tri", "Tên điểm hiện tại (string)"),
+            ("dich_den", "Tên điểm đích (string)"),
+            ("trang_thai", "'cho_lenh', 'lay_hang', 'tra_hang', 'error'"),
+            ("april_tag", "ID thẻ quét được (int)"),
+            ("xy_lanh", "'nang' hoặc 'ha'"),
+            ("khoang_cach_den_dich", "Khoảng cách đến điểm đích (mm)")
+        ],
+        "dau_ra": [
+            ("nang_xe()", "Ra lệnh nâng xylanh"),
+            ("ha_xe()", "Ra lệnh hạ xylanh"),
+            ("reset_nang_ha()", "Xóa lệnh nâng/hạ (về None)"),
+            ("bam_coi(name)", "Bật nhạc theo tên (None để tắt)"),
+            ("dung(giay)", "Tạm dừng trong x giây"),
+            ("print(msg)", "Ghi log ra màn hình console"),
+            ("cho_lenh()", "Dừng xe đợi gọi API: /api/code/resume"),
+            ("xoay_goc(ang, mode)", "Xoay (mode 0: thân xe, 1: đầu xe) hợp với Ox theo góc ang (độ)"),
+            ("set_toc_do_tien(v)", "Cài đặt tốc độ tiến max"),
+            ("set_toc_do_re(v)", "Cài đặt tốc độ rẽ max")
+        ],
+        "cau_truc": [
+            ("if / elif / else", "Cấu trúc điều kiện Python"),
+            ("for i in range(x)", "Vòng lặp số lần cố định"),
+            ("and / or / not", "Toán tử logic")
+        ]
+    }
+
+    ID_CAN_TAO = None
+    KICH_THUOC = "30mm"
+
     # Trạng thái điều khiển
     # Nhóm tạo bản đồ mới
     che_do_tao_ban_do = False
@@ -140,6 +199,8 @@ class AGVConfig:
     thoi_gian_cap_nhat = 500 # ms , cập nhật vị trí, hướng, danh_sach_diem_lidar_icp, danh_sach_duong_di 
     
     lidar_display_skip = 3 # Lấy mỗi điểm thứ N để hiển thị (giảm tải cho Web). 1 là lấy hết, 2 là giảm 1/2, 3 là giảm 1/3...
+
+
 
 
     # Dữ liệu trạng thái nhận từ các AGV
@@ -190,6 +251,7 @@ class AGVConfig:
     # danh_sach_duong_di = ["C20", "C21"]
     kich_thuoc_agv = [40,20] # pixel, dùng để vẽ hình chữ nhật đại diện cho AGV trên bản đồ
     kich_thuoc_mapping_update = [1000,1000]
+    
 
     toa_do_agv_mm = [3000, 5000]
     huong_agv_do_thuc_rad = np.radians(60)
@@ -207,6 +269,10 @@ class AGVConfig:
     danh_sach_ban_do = [d for d in os.listdir(path_map_folder) if os.path.isdir(os.path.join(path_map_folder, d))] if os.path.exists(path_map_folder) else []
     # Đường dẫn file JSON để lưu trạng thái phiên làm việc trước đó
     path_last_config = os.path.join(PATH_PHAN_MEM, "data_input_output", "last_config.json")
+    
+    # Danh sách các script đã lưu
+    danh_sach_scripts = [f.replace('.json', '') for f in os.listdir(path_folder_scripts) if f.endswith('.json')] if os.path.exists(path_folder_scripts) else []
+
     # Lấy danh sách file điểm và đường từ folder thực tế dùng để tạo thanh combobox trên web
     danh_sach_folder_diem = [f.replace('.json', '') for f in os.listdir(path_folder_danh_sach_diem) if f.endswith('.json')] if os.path.exists(path_folder_danh_sach_diem) else []
     danh_sach_folder_duong = [f.replace('.json', '') for f in os.listdir(path_folder_danh_sach_duong) if f.endswith('.json')] if os.path.exists(path_folder_danh_sach_duong) else []

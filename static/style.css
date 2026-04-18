@@ -633,6 +633,23 @@ body {
     white-space: nowrap;
 }
 
+/* AprilTag Indicator trên Marker */
+.marker-tag-indicator {
+    position: absolute;
+    top: -12px;
+    right: -12px;
+    background: rgba(46, 204, 113, 0.85); /* Màu xanh lá trong suốt */
+    color: white;
+    padding: 1px 4px;
+    border-radius: 4px;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    border: 1px solid white;
+    pointer-events: none;
+}
+
 /* --- Path Styles --- */
 .path-svg-line {
     fill: none;
@@ -905,3 +922,97 @@ body {
     border: 2px solid #3498db;
     box-shadow: 0 0 30px rgba(52, 152, 219, 0.4);
 }
+
+/* Code Editor Tab Styles */
+.code-editor-layout {
+    display: flex;
+    height: 100%;
+    background-color: #f1f2f6;
+}
+
+.code-sidebar {
+    width: 250px;
+    background: white;
+    border-right: 1px solid #dcdde1;
+    display: flex;
+    flex-direction: column;
+}
+
+.script-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.script-item {
+    padding: 10px 15px;
+    margin-bottom: 5px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-weight: 500;
+    border: 1px solid transparent;
+}
+
+.script-item:hover {
+    background: #e9ecef;
+    border-color: #3498db;
+}
+
+.script-item.active {
+    background: #3498db;
+    color: white;
+}
+
+.editor-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 15px;
+}
+
+.editor-toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.editor-toolbar input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #dcdde1;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+#code-textarea {
+    flex: 1;
+    background: #2c3e50;
+    color: #ecf0f1;
+    padding: 20px;
+    border-radius: 8px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 1.1rem;
+    line-height: 1.5;
+    resize: none;
+    border: 2px solid #34495e;
+    outline: none;
+}
+
+#code-textarea:focus {
+    border-color: #3498db;
+}
+
+.code-help {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 5px solid #3498db;
+}
+
+.code-help h4 { margin-top: 0; color: #2c3e50; }
+.help-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.help-col strong { display: block; margin-bottom: 8px; color: #3498db; font-size: 0.9rem; }
+.help-col ul { padding-left: 20px; margin: 0; font-size: 0.85rem; color: #7f8c8d; }

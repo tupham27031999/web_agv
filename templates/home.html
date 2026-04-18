@@ -29,6 +29,9 @@
                 <button class="tab-btn active" onclick="openTab(event, 'homeTab')">
                     <i class="fa-solid fa-house"></i> {{ config.tab_1 }}
                 </button>
+                <button class="tab-btn" onclick="openTab(event, 'codeTab')">
+                    <i class="fa-solid fa-code"></i> {{ config.tab_4 }}
+                </button>
                 <button class="tab-btn" onclick="openTab(event, 'mappingTab')">
                     <i class="fa-solid fa-map-location-dot"></i> {{ config.tab_3 }}
                 </button>
@@ -189,6 +192,17 @@
                             </div>
                         </div>
 
+                        <!-- Nhóm Quản lý AprilTag -->
+                        <div class="control-section">
+                            <div class="section-title">Quản lý AprilTag</div>
+                            <div class="input-with-btn">
+                                <input type="number" id="new-tag-id" placeholder="Nhập ID thẻ mới...">
+                                <button class="save-btn" onclick="generateAprilTag()" title="Tạo mã AprilTag mới">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Nhóm Vị trí thủ công -->
                         <div class="control-section">
                             <div class="section-title">Vị trí thủ công</div>
@@ -253,6 +267,67 @@
                             </button>
                         </div>
 
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Code -->
+        <div id="codeTab" class="tab-content">
+            <div class="code-editor-layout">
+                <div class="code-sidebar">
+                    <div class="toolbar-header"><i class="fa-solid fa-scroll"></i> Danh sách Script</div>
+                    <div class="script-list" id="script-list-container">
+                        <!-- Load dynamically -->
+                    </div>
+                    <button class="action-btn btn-run" onclick="createNewScript()" style="margin: 10px;">
+                        <i class="fa-solid fa-plus"></i> Tạo script mới
+                    </button>
+                </div>
+                
+                <div class="editor-main">
+                    <div class="editor-toolbar">
+                        <input type="text" id="script-name" placeholder="Tên script...">
+                        <button class="save-btn" onclick="saveCurrentScript()" title="Lưu Script"><i class="fa-solid fa-floppy-disk"></i></button>
+                        <button id="btn-run-script" class="save-btn" style="background-color: #3498db;" onclick="toggleScriptExecution()" title="Chạy Script"><i class="fa-solid fa-play"></i></button>
+                        <button class="save-btn" style="background-color: #e74c3c;" onclick="deleteCurrentScript()" title="Xóa Script"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    <textarea id="code-textarea" spellcheck="false" placeholder="Viết logic tại đây... 
+# Ví dụ Python:
+if vi_tri == 'P1' and trang_thai == 'IDLE':
+    nang_xe()
+    bam_coi()
+elif vi_tri == 'P2':
+    ha_xe()"></textarea>
+                    
+                    <div class="code-help">
+                        <h4><i class="fa-solid fa-circle-info"></i> Hướng dẫn cú pháp</h4>
+                        <div class="help-grid">
+                            <div class="help-col">
+                                <strong>Đầu vào (Conditions):</strong>
+                                <ul>
+                                    {% for item, desc in config.huong_dan_code.dau_vao %}
+                                    <li><code>{{ item }}</code>: {{ desc }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <div class="help-col">
+                                <strong>Đầu ra (Actions):</strong>
+                                <ul>
+                                    {% for item, desc in config.huong_dan_code.dau_ra %}
+                                    <li><code>{{ item }}</code>: {{ desc }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <div class="help-col">
+                                <strong>Cấu trúc:</strong>
+                                <ul>
+                                    {% for item, desc in config.huong_dan_code.cau_truc %}
+                                    <li><code>{{ item }}</code>: {{ desc }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -536,6 +611,12 @@
                 <div id="heading-group" class="input-group" style="display: none;">
                     <label>Góc (Ox):</label>
                     <input type="number" id="m-point-heading" value="0.0">
+                </div>
+                <div class="input-group">
+                    <label>Mã AprilTag (SVG):</label>
+                    <select id="m-point-tag">
+                        <option value="">-- Không sử dụng --</option>
+                    </select>
                 </div>
             </div>
             <div class="modal-footer">
