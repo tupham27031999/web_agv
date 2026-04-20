@@ -124,8 +124,7 @@ class AGVConfig:
     stop_code_resume = False # Cờ báo hiệu script đang dừng đợi lệnh gọi API
     id_april_tag_quet_duoc = None # Lưu ID thẻ AprilTag mới nhất quét được, để script có thể truy cập khi cần
 
-    nang_xe_code = None # Lưu trạng thái nâng xe để script có thể truy cập
-    ha_xe_code = None # Lưu trạng thái hạ xe để script có thể truy cập
+    nang_ha_xe_code = None # Lưu trạng thái nâng hạ xe ('nang', 'ha', None)
     music_name_code = None # Lưu tên nhạc đang phát nếu có, để script có thể truy cập khi cần
     dung_trong_giay_code = None # Lưu trữ thời gian tạm dừng còn lại nếu script gọi hàm dung(giay)
     xoay_goc_code = None # Lưu trữ góc xoay hiện tại nếu script gọi hàm xoay_goc(ang)
@@ -165,9 +164,7 @@ class AGVConfig:
             ("hoan_thanh_song_song", "Đã định vị song song xong (True/None)")
         ],
         "dau_ra": [
-            ("nang_xe()", "Ra lệnh nâng xylanh"),
-            ("ha_xe()", "Ra lệnh hạ xylanh"),
-            ("reset_nang_ha()", "Xóa lệnh nâng/hạ (về None)"),
+            ("nang_ha_xe(trang_thai)", "Ra lệnh nâng hạ (trang_thai: 'nang', 'ha', None)"),
             ("bam_coi(name)", "Bật nhạc theo tên (None để tắt)"),
             ("dung(giay)", "Tạm dừng trong x giây"),
             ("print(msg)", "Ghi log ra màn hình console"),

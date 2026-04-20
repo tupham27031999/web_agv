@@ -530,17 +530,8 @@ def run_script_interpreter():
 
     try:
         # 2. Định nghĩa các hàm "Đầu ra" (Actions) cho người dùng
-        def nang_xe():
-            AGVConfig.nang_xe_code = 1
-            AGVConfig.ha_xe_code = 0
-
-        def ha_xe():
-            AGVConfig.ha_xe_code = 1
-            AGVConfig.nang_xe_code = 0
-
-        def reset_nang_ha():
-            AGVConfig.nang_xe_code = None
-            AGVConfig.ha_xe_code = None
+        def nang_ha_xe(trang_thai):
+            AGVConfig.nang_ha_xe_code = trang_thai
 
         def bam_coi(music_name="bam_coi"):
             AGVConfig.music_name_code = music_name
@@ -615,9 +606,7 @@ def run_script_interpreter():
             'hoan_thanh_song_song': AGVConfig.hoan_thanh_vi_tri_song_song_code,
             
             # Các hàm "Đầu ra" (Commands)
-            'nang_xe': nang_xe,
-            'ha_xe': ha_xe,
-            'reset_nang_ha': reset_nang_ha,
+            'nang_ha_xe': nang_ha_xe,
             'bam_coi': bam_coi,
             'dung': dung,
             'cho_lenh': cho_lenh,
