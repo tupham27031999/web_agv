@@ -132,6 +132,13 @@ class AGVConfig:
     xoay_goc_mode_code = 0 # 0: Chỉ cần thân xe hợp với Ox, 1: Đầu xe phải hướng đúng góc
     van_toc_tien_max_code = None
     van_toc_re_max_code = None
+    kc_an_toan_truoc_code = None
+    kc_an_toan_sau_code = None
+    kc_an_toan_ben_canh_code = None
+    xac_dinh_vi_tri_xe_vuong_goc_code = None # cho xe vuông góc với xe linh kiện
+    xac_dinh_vi_tri_xe_song_song_code = None # cho xe song song với xe linh kiện
+
+
 
     vi_tri_code = None # Tên điểm hiện tại (string)
     dich_den_code = None # Tên điểm đích (string)
@@ -139,6 +146,10 @@ class AGVConfig:
     april_tag_code = None # ID thẻ quét được (int)
     xy_lanh_code = None # 'nang' hoặc 'ha'
     khoang_cach_den_dich_code = None # mm
+    hoan_thanh_vi_tri_vuong_goc_code = None # True/False
+    hoan_thanh_vi_tri_song_song_code = None # True/False
+
+
 
     
     # Cấu hình nội dung hướng dẫn trên giao diện Web (Linh hoạt)
@@ -149,7 +160,9 @@ class AGVConfig:
             ("trang_thai", "'cho_lenh', 'lay_hang', 'tra_hang', 'error'"),
             ("april_tag", "ID thẻ quét được (int)"),
             ("xy_lanh", "'nang' hoặc 'ha'"),
-            ("khoang_cach_den_dich", "Khoảng cách đến điểm đích (mm)")
+            ("khoang_cach_den_dich", "Khoảng cách đến điểm đích (mm)"),
+            ("hoan_thanh_vuong_goc", "Đã định vị vuông góc xong (True/None)"),
+            ("hoan_thanh_song_song", "Đã định vị song song xong (True/None)")
         ],
         "dau_ra": [
             ("nang_xe()", "Ra lệnh nâng xylanh"),
@@ -160,13 +173,16 @@ class AGVConfig:
             ("print(msg)", "Ghi log ra màn hình console"),
             ("cho_lenh()", "Dừng xe đợi gọi API: /api/code/resume"),
             ("xoay_goc(ang, mode)", "Xoay (mode 0: thân xe, 1: đầu xe) hợp với Ox theo góc ang (độ)"),
-            ("set_toc_do_tien(v)", "Cài đặt tốc độ tiến max"),
-            ("set_toc_do_re(v)", "Cài đặt tốc độ rẽ max")
+            ("set_toc_do_tien(v)", "Cài đặt tốc độ tiến max (để None nếu muốn dùng tốc độ mặc định)"),
+            ("set_toc_do_re(v)", "Cài đặt tốc độ rẽ max (để None nếu muốn dùng tốc độ mặc định)"),
+            ("set_khoang_cach_an_toan(truoc, sau, canh)", "Cài đặt khoảng cách an toàn (truoc, sau, canh). Để None nếu muốn dùng mặc định"),
+            ("set_dinh_vi_xe_linh_kien(mode)", "Định vị xe linh kiện (mode: 'vuong_goc', 'song_song', None)"),
         ],
         "cau_truc": [
             ("if / elif / else", "Cấu trúc điều kiện Python"),
             ("for i in range(x)", "Vòng lặp số lần cố định"),
-            ("and / or / not", "Toán tử logic")
+            ("and / or / not", "Toán tử logic"),
+            ("chay_script('tên')", "Chạy script khác đã lưu (tên script phải để trong dấu nháy '')")
         ]
     }
 

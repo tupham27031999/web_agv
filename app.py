@@ -565,6 +565,42 @@ def run_script_interpreter():
             AGVConfig.xoay_goc_mode_code = mode
             print(f"Script yêu cầu xoay góc {ang} độ, mode {mode}", type(ang), type(mode)) # test
 
+        def set_khoang_cach_an_toan(truoc, sau, canh):
+            AGVConfig.kc_an_toan_truoc_code = truoc
+            AGVConfig.kc_an_toan_sau_code = sau
+            AGVConfig.kc_an_toan_ben_canh_code = canh
+
+        def set_dinh_vi_xe_linh_kien(mode):
+            if mode == "vuong_goc":
+                AGVConfig.xac_dinh_vi_tri_xe_vuong_goc_code = True
+                AGVConfig.xac_dinh_vi_tri_xe_song_song_code = None
+                AGVConfig.hoan_thanh_vi_tri_song_song_code = None
+            elif mode == "song_song":
+                AGVConfig.xac_dinh_vi_tri_xe_song_song_code = True
+                AGVConfig.xac_dinh_vi_tri_xe_vuong_goc_code = None
+                AGVConfig.hoan_thanh_vi_tri_vuong_goc_code = None
+            else: # None
+                AGVConfig.xac_dinh_vi_tri_xe_vuong_goc_code = None
+                AGVConfig.xac_dinh_vi_tri_xe_song_song_code = None
+                AGVConfig.hoan_thanh_vi_tri_vuong_goc_code = None
+                AGVConfig.hoan_thanh_vi_tri_song_song_code = None
+
+        def chay_script(name):
+            """Hàm thực thi một script khác đã được lưu"""
+            file_path = os.path.join(config.path_folder_scripts, f"{name}.json")
+            if os.path.exists(file_path):
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        script_content = data.get('content', '')
+                        # Thực thi script con với cùng môi trường safe_env
+                        if script_content:
+                            exec(script_content, {"__builtins__": {}}, safe_env)
+                except Exception as e:
+                    print(f"Lỗi khi thực thi script con '{name}': {e}")
+            else:
+                print(f"Cảnh báo: Không tìm thấy script '{name}' để chạy.")
+
         # 3. Thiết lập môi trường "An toàn" (Sandbox)
         # Chúng ta chỉ cho phép script truy cập vào các hàm và biến ta chỉ định
         safe_env = {
@@ -575,6 +611,8 @@ def run_script_interpreter():
             'april_tag': AGVConfig.april_tag_code,
             'xy_lanh': AGVConfig.xy_lanh_code,
             'khoang_cach_den_dich': AGVConfig.khoang_cach_den_dich_code,
+            'hoan_thanh_vuong_goc': AGVConfig.hoan_thanh_vi_tri_vuong_goc_code,
+            'hoan_thanh_song_song': AGVConfig.hoan_thanh_vi_tri_song_song_code,
             
             # Các hàm "Đầu ra" (Commands)
             'nang_xe': nang_xe,
@@ -586,6 +624,9 @@ def run_script_interpreter():
             'set_toc_do_tien': set_toc_do_tien,
             'set_toc_do_re': set_toc_do_re,
             'xoay_goc': xoay_goc,
+            'set_khoang_cach_an_toan': set_khoang_cach_an_toan,
+            'set_dinh_vi_xe_linh_kien': set_dinh_vi_xe_linh_kien,
+            'chay_script': chay_script,
             
             # Các hàm thư viện cơ bản
             'range': range,
@@ -596,7 +637,7 @@ def run_script_interpreter():
 
         # 4. Thực thi kịch bản (Execution)
         # exec() sẽ chạy toàn bộ code Python của người dùng trong môi trường safe_env
-        exec(AGVConfig.noi_dung_script_dang_chay, {"__builtins__": None}, safe_env)
+        exec(AGVConfig.noi_dung_script_dang_chay, {"__builtins__": {}}, safe_env)
 
     except Exception as e:
         # Nếu code người dùng gõ sai logic (chia cho 0, gọi hàm không tồn tại...)
