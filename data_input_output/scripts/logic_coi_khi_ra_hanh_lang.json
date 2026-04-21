@@ -1,0 +1,5 @@
+{
+    "name": "logic_coi_khi_ra_hanh_lang",
+    "content": "# thực hiện còi và giảm tốc độ tối đa\ndiem_dau_diem_dich = [[\"C1\", \"H14\"], [\"C1\", \"H04\"], [\"H12\", \"H14\"], [\"G13\", \"H17\"],\n                      [\"G14\", \"H110\"], [\"C2\", \"H110\"], [\"C2\", \"H010\"], \n                      [\"G71\", \"H21\"], [\"G72\", \"H24\"], [\"G73\", \"H27\"], \n                      [\"G74\", \"H210\"], [\"G75\", \"H213\"]]\n\ncoi_thong_bao = False\ntoc_do_tien = 5000\nfor i in range(0, len(diem_dau_diem_dich)):\n    if vi_tri_hien_tai == diem_dau_diem_dich[i][0] and vi_tri_diem_cuoi == diem_dau_diem_dich[i][1] and da_den_diem_tiep_theo == False:\n        coi_thong_bao = True\n        break\n\nif coi_thong_bao == True:\n    set_toc_do_tien(toc_do_tien)\n    bam_coi(\"coi\")\nelse:\n    set_toc_do_tien(None)\n    bam_coi(None)",
+    "updated_at": "2026-04-21 13:02:24"
+}

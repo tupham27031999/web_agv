@@ -429,12 +429,14 @@ def activate_script():
         AGVConfig.ten_script_dang_chay = ""
         AGVConfig.noi_dung_script_dang_chay = ""
         AGVConfig.du_lieu_script_dang_chay = {}
+        AGVConfig.bien_nho_code = {} # Reset bộ nhớ khi tắt script
         return jsonify({"status": "success", "active": ""})
 
     file_path = os.path.join(config.path_folder_scripts, f"{name}.json")
     if os.path.exists(file_path):
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
+        AGVConfig.bien_nho_code = {} # Reset bộ nhớ khi đổi script mới
         AGVConfig.ten_script_dang_chay = name
         AGVConfig.noi_dung_script_dang_chay = data.get('content', '')
         AGVConfig.du_lieu_script_dang_chay = data
@@ -527,7 +529,7 @@ def run_script_interpreter():
 
     if not AGVConfig.noi_dung_script_dang_chay:
         return
-
+    print(AGVConfig.bien_nho_code)
     try:
         # 2. Định nghĩa các hàm "Đầu ra" (Actions) cho người dùng
         def nang_ha_xe(trang_thai):
@@ -561,21 +563,25 @@ def run_script_interpreter():
             AGVConfig.kc_an_toan_sau_code = sau
             AGVConfig.kc_an_toan_ben_canh_code = canh
 
-        def set_dinh_vi_xe_linh_kien(mode):
-            if mode == "vuong_goc":
-                AGVConfig.xac_dinh_vi_tri_xe_vuong_goc_code = True
-                AGVConfig.xac_dinh_vi_tri_xe_song_song_code = None
-                AGVConfig.hoan_thanh_vi_tri_song_song_code = None
-            elif mode == "song_song":
-                AGVConfig.xac_dinh_vi_tri_xe_song_song_code = True
-                AGVConfig.xac_dinh_vi_tri_xe_vuong_goc_code = None
-                AGVConfig.hoan_thanh_vi_tri_vuong_goc_code = None
-            else: # None
-                AGVConfig.xac_dinh_vi_tri_xe_vuong_goc_code = None
-                AGVConfig.xac_dinh_vi_tri_xe_song_song_code = None
-                AGVConfig.hoan_thanh_vi_tri_vuong_goc_code = None
-                AGVConfig.hoan_thanh_vi_tri_song_song_code = None
-
+        def vung_loai_bo(mode, data):
+            """Thiết lập hiển thị và dữ liệu vùng loại bỏ chân xe"""
+            if data == None:
+                data = []
+            if AGVConfig.loai_bo_coc_xe["che_do_lay_mau"] == 0:
+                if mode == "on":
+                    if AGVConfig.da_cap_nhat_vung_loai_bo != "on" or AGVConfig.vung_loai_bo_x1y1x2y2 != data:
+                        AGVConfig.vung_loai_bo_x1y1x2y2 = data
+                        AGVConfig.update_pixel_exclusion_zones()
+                elif mode == "off":
+                    if AGVConfig.da_cap_nhat_vung_loai_bo != "off":
+                        AGVConfig.vung_loai_bo_x1y1x2y2 = data
+                        AGVConfig.vung_loai_bo_x1y1x2y2_pixel = data
+                else:
+                    if AGVConfig.da_cap_nhat_vung_loai_bo != None:
+                        AGVConfig.load_loai_bo(AGVConfig.loai_bo_coc_xe["ten_vung_loai_bo"])
+                        AGVConfig.update_pixel_exclusion_zones()
+                AGVConfig.da_cap_nhat_vung_loai_bo = mode
+            
         def chay_script(name):
             """Hàm thực thi một script khác đã được lưu"""
             file_path = os.path.join(config.path_folder_scripts, f"{name}.json")
@@ -591,19 +597,23 @@ def run_script_interpreter():
                     print(f"Lỗi khi thực thi script con '{name}': {e}")
             else:
                 print(f"Cảnh báo: Không tìm thấy script '{name}' để chạy.")
-
         # 3. Thiết lập môi trường "An toàn" (Sandbox)
         # Chúng ta chỉ cho phép script truy cập vào các hàm và biến ta chỉ định
         safe_env = {
             # Các biến "Đầu vào" (Sensors/Status)
-            'vi_tri': AGVConfig.vi_tri_code,
-            'dich_den': AGVConfig.dich_den_code,
+            'vi_tri_hien_tai': AGVConfig.vi_tri_hien_tai_code,
+            'vi_tri_tiep_theo': AGVConfig.vi_tri_tiep_theo_code,
+            'vi_tri_diem_cuoi': AGVConfig.vi_tri_diem_cuoi,
             'trang_thai': AGVConfig.trang_thai_code,
             'april_tag': AGVConfig.april_tag_code,
             'xy_lanh': AGVConfig.xy_lanh_code,
             'khoang_cach_den_dich': AGVConfig.khoang_cach_den_dich_code,
-            'hoan_thanh_vuong_goc': AGVConfig.hoan_thanh_vi_tri_vuong_goc_code,
-            'hoan_thanh_song_song': AGVConfig.hoan_thanh_vi_tri_song_song_code,
+            'da_den_diem_tiep_theo': AGVConfig.da_den_diem_tiep_theo_code,
+            'van_toc_trai': AGVConfig.van_toc_phan_hoi_trai,
+            'van_toc_phai': AGVConfig.van_toc_phan_hoi_phai,
+            'goc_agv': AGVConfig.huong_agv_do_img,
+            'danh_sach_duong_di': AGVConfig.danh_sach_duong_di_code,
+            'bien_nho': AGVConfig.bien_nho_code,
             
             # Các hàm "Đầu ra" (Commands)
             'nang_ha_xe': nang_ha_xe,
@@ -614,14 +624,15 @@ def run_script_interpreter():
             'set_toc_do_re': set_toc_do_re,
             'xoay_goc': xoay_goc,
             'set_khoang_cach_an_toan': set_khoang_cach_an_toan,
-            'set_dinh_vi_xe_linh_kien': set_dinh_vi_xe_linh_kien,
+            'vung_loai_bo': vung_loai_bo,
             'chay_script': chay_script,
             
             # Các hàm thư viện cơ bản
             'range': range,
             'print': print,
             'int': int,
-            'str': str
+            'str': str,
+            'len': len
         }
 
         # 4. Thực thi kịch bản (Execution)

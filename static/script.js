@@ -1,4 +1,23 @@
 /**
+ * Khởi tạo Ace Editor toàn cục
+ */
+let aceEditor = null;
+let isScriptDirty = false; // Cờ theo dõi thay đổi chưa lưu
+
+function initAceEditor() {
+    if (aceEditor) return;
+    aceEditor = ace.edit("code-editor");
+    aceEditor.setTheme("ace/theme/monokai"); // Giao diện tối giống VS Code
+    aceEditor.session.setMode("ace/mode/python"); // Chế độ tô màu Python
+    aceEditor.setShowPrintMargin(false);
+
+    // Lắng nghe sự kiện thay đổi nội dung
+    aceEditor.on('change', () => {
+        isScriptDirty = true;
+    });
+}
+
+/**
  * Hàm chuyển đổi Tab  isCreateMapMode che_do_tao_ban_do
  */
 function openTab(event, tabId) {
@@ -23,6 +42,7 @@ function openTab(event, tabId) {
     }
     
     if (tabId === 'codeTab') {
+        initAceEditor();
         loadScriptList();
     }
 }
@@ -1533,26 +1553,32 @@ async function loadScriptList() {
 }
 
 async function loadScriptContent(name) {
-    const res = await fetch(`/api/code/load/${name}`);
-    const data = await res.json();
-    if (data.status === 'success') {
-        currentLoadedScript = name;
-        document.getElementById('script-name').value = name;
-        document.getElementById('code-textarea').value = data.content;
-        loadScriptList();
-    }
+    checkUnsavedChanges(async () => {
+        const res = await fetch(`/api/code/load/${name}`);
+        const data = await res.json();
+        if (data.status === 'success') {
+            currentLoadedScript = name;
+            document.getElementById('script-name').value = name;
+            aceEditor.setValue(data.content, -1); // -1 để đưa con trỏ về đầu
+            isScriptDirty = false; // Reset cờ sau khi nạp thành công
+            loadScriptList();
+        }
+    });
 }
 
 function createNewScript() {
-    currentLoadedScript = null;
-    document.getElementById('script-name').value = "";
-    document.getElementById('code-textarea').value = "";
-    loadScriptList();
+    checkUnsavedChanges(() => {
+        currentLoadedScript = null;
+        document.getElementById('script-name').value = "";
+        aceEditor.setValue("", -1);
+        isScriptDirty = false;
+        loadScriptList();
+    });
 }
 
 async function saveCurrentScript() {
     const name = document.getElementById('script-name').value.trim();
-    const content = document.getElementById('code-textarea').value;
+    const content = aceEditor.getValue();
     
     if (!name) return alert("Vui lòng nhập tên Script");
     
@@ -1565,10 +1591,13 @@ async function saveCurrentScript() {
     const result = await res.json();
     if (result.status === 'success') {
         currentLoadedScript = name;
+        isScriptDirty = false; // Reset cờ sau khi lưu thành công
         alert("Đã lưu Script thành công!");
         loadScriptList();
+        return true;
     } else {
         alert("Lỗi khi lưu Script:\n" + result.message);
+        return false;
     }
 }
 
@@ -1618,25 +1647,58 @@ async function deleteCurrentScript() {
         loadScriptList();
     }
 }
-// --- Hỗ trợ phím Tab cho trình soạn thảo Code ---
-const codeArea = document.getElementById('code-textarea');
-if (codeArea) {
-    codeArea.addEventListener('keydown', function(e) {
-        if (e.key === 'Tab') {
-            e.preventDefault(); // Ngăn việc chuyển focus sang nút khác
-            
-            const start = this.selectionStart;
-            const end = this.selectionEnd;
-
-            // Chèn 4 khoảng trắng (chuẩn Python) vào vị trí con trỏ
-            const spaces = "    ";
-            this.value = this.value.substring(0, start) + spaces + this.value.substring(end);
-
-            // Đưa con trỏ về vị trí sau khi chèn khoảng trắng
-            this.selectionStart = this.selectionEnd = start + spaces.length;
-        }
-    });
+/**
+ * Hàm ẩn/hiện khung hướng dẫn cú pháp ở tab Code
+ */
+function toggleCodeHelp() {
+    const content = document.getElementById('help-content');
+    const icon = document.getElementById('help-toggle-icon');
+    if (content.style.display === 'none') {
+        content.style.display = 'grid';
+        icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+    } else {
+        content.style.display = 'none';
+        icon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+    }
 }
+
+/**
+ * Xử lý kiểm tra thay đổi chưa lưu với modal tùy chỉnh
+ */
+let pendingAction = null;
+function checkUnsavedChanges(onConfirm) {
+    if (!isScriptDirty) {
+        onConfirm();
+        return;
+    }
+    
+    pendingAction = onConfirm;
+    const msg = `Script "${currentLoadedScript || 'không tên'}" có thay đổi chưa lưu. Bạn có muốn lưu lại trước khi tiếp tục không?`;
+    document.getElementById('unsaved-modal-msg').innerText = msg;
+    document.getElementById('unsaved-script-modal').style.display = 'flex';
+}
+
+function closeUnsavedModal() {
+    document.getElementById('unsaved-script-modal').style.display = 'none';
+    pendingAction = null;
+}
+
+// Xử lý nút "Lưu" trên Modal
+document.getElementById('btn-yes-save').onclick = async () => {
+    const success = await saveCurrentScript();
+    if (success) {
+        const action = pendingAction;
+        closeUnsavedModal();
+        if (action) action();
+    }
+};
+
+// Xử lý nút "Không lưu" trên Modal
+document.getElementById('btn-no-save').onclick = () => {
+    const action = pendingAction;
+    closeUnsavedModal();
+    if (action) action();
+};
 
 async function generateAprilTag() {
     const idInput = document.getElementById('new-tag-id');

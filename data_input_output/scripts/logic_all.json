@@ -1,0 +1,5 @@
+{
+    "name": "logic_all",
+    "content": "chay_script('logic_an_toan')\nchay_script('logic_lay_xe_linh_kien')\nchay_script('logic_lay_linh_kien')",
+    "updated_at": "2026-04-21 10:39:05"
+}

@@ -123,7 +123,35 @@ class AGVConfig:
     du_lieu_script_dang_chay = {} # Lưu trữ toàn bộ object JSON của script đang chạy
     stop_code_resume = False # Cờ báo hiệu script đang dừng đợi lệnh gọi API
     id_april_tag_quet_duoc = None # Lưu ID thẻ AprilTag mới nhất quét được, để script có thể truy cập khi cần
+    bien_nho_code = {} # Lưu trữ các biến tùy chỉnh của người dùng để so sánh giữa các vòng lặp
 
+    # input
+    # vi_tri_hien_tai_code = None # Tên điểm hiện tại (string)
+    # vi_tri_tiep_theo_code = None # Tên điểm tiếp theo (string)
+    # vi_tri_diem_cuoi = None # Tên điểm cuối cùng đã đi qua (string)
+    # danh_sach_duong_di_code = [] # Danh sách đường đi (danh_sach_duong_di) mà AGV sẽ đi qua, để script có thể truy cập khi cần
+    # trang_thai_code = None # 'cho_lenh', 'lay_hang', 'tra_hang', 'error'
+    # april_tag_code = None # ID thẻ quét được (int)
+    # xy_lanh_code = None # 'nang' hoặc 'ha'
+    # khoang_cach_den_dich_code = None # mm
+    # da_den_diem_tiep_theo_code = False # True/False
+    # van_toc_phan_hoi_trai = None
+    # van_toc_phan_hoi_phai = None
+
+    # test input
+    vi_tri_hien_tai_code = "X1" # Tên điểm hiện tại (string)
+    vi_tri_tiep_theo_code = "W1" # Tên điểm tiếp theo (string)
+    vi_tri_diem_cuoi = "G21" # Tên điểm cuối cùng đã đi qua (string)
+    danh_sach_duong_di_code = ["X1", "W1", "G21"] # Danh sách đường đi (danh_sach_duong_di) mà AGV sẽ đi qua, để script có thể truy cập khi cần
+    trang_thai_code = "lay_linh_kien" # 'cho_lenh', 'lay_linh_kien', 'lay_xe_linh_kien', 'error'
+    april_tag_code = None # ID thẻ quét được (int)
+    xy_lanh_code = "nang" # 'nang' hoặc 'ha'
+    khoang_cach_den_dich_code = 200 # mm
+    da_den_diem_tiep_theo_code = True # True/False
+    van_toc_phan_hoi_trai = 0
+    van_toc_phan_hoi_phai = 0
+
+    # output
     nang_ha_xe_code = None # Lưu trạng thái nâng hạ xe ('nang', 'ha', None)
     music_name_code = None # Lưu tên nhạc đang phát nếu có, để script có thể truy cập khi cần
     dung_trong_giay_code = None # Lưu trữ thời gian tạm dừng còn lại nếu script gọi hàm dung(giay)
@@ -134,34 +162,23 @@ class AGVConfig:
     kc_an_toan_truoc_code = None
     kc_an_toan_sau_code = None
     kc_an_toan_ben_canh_code = None
-    xac_dinh_vi_tri_xe_vuong_goc_code = None # cho xe vuông góc với xe linh kiện
-    xac_dinh_vi_tri_xe_song_song_code = None # cho xe song song với xe linh kiện
 
 
-
-    vi_tri_code = None # Tên điểm hiện tại (string)
-    dich_den_code = None # Tên điểm đích (string)
-    trang_thai_code = None # 'cho_lenh', 'lay_hang', 'tra_hang', 'error'
-    april_tag_code = None # ID thẻ quét được (int)
-    xy_lanh_code = None # 'nang' hoặc 'ha'
-    khoang_cach_den_dich_code = None # mm
-    hoan_thanh_vi_tri_vuong_goc_code = None # True/False
-    hoan_thanh_vi_tri_song_song_code = None # True/False
-
-
-
-    
     # Cấu hình nội dung hướng dẫn trên giao diện Web (Linh hoạt)
     huong_dan_code = {
         "dau_vao": [
-            ("vi_tri", "Tên điểm hiện tại (string)"),
-            ("dich_den", "Tên điểm đích (string)"),
+            ("vi_tri_hien_tai", "Tên điểm hiện tại (string)"),
+            ("vi_tri_tiep_theo", "Tên điểm tiếp theo (string)"),
+            ("vi_tri_diem_cuoi", "Tên điểm cuối cùng agv cần đi đến (string)"),
             ("trang_thai", "'cho_lenh', 'lay_hang', 'tra_hang', 'error'"),
             ("april_tag", "ID thẻ quét được (int)"),
             ("xy_lanh", "'nang' hoặc 'ha'"),
-            ("khoang_cach_den_dich", "Khoảng cách đến điểm đích (mm)"),
-            ("hoan_thanh_vuong_goc", "Đã định vị vuông góc xong (True/None)"),
-            ("hoan_thanh_song_song", "Đã định vị song song xong (True/None)")
+            ("khoang_cach_den_dich", "Khoảng cách đến điểm tiếp theo (mm)"),
+            ("da_den_diem_tiep_theo", "Đã đến điểm tiếp theo (True/False)"),
+            ("van_toc_trai", "Vận tốc phản hồi bánh trái (mm/s)"),
+            ("van_toc_phai", "Vận tốc phản hồi bánh phải (mm/s)"),
+            ("goc_agv", "Góc quay của AGV so với Ox (độ)"),
+            ("danh_sach_duong_di", "Danh sách các điểm trong lộ trình (list)")
         ],
         "dau_ra": [
             ("nang_ha_xe(trang_thai)", "Ra lệnh nâng hạ (trang_thai: 'nang', 'ha', None)"),
@@ -173,13 +190,14 @@ class AGVConfig:
             ("set_toc_do_tien(v)", "Cài đặt tốc độ tiến max (để None nếu muốn dùng tốc độ mặc định)"),
             ("set_toc_do_re(v)", "Cài đặt tốc độ rẽ max (để None nếu muốn dùng tốc độ mặc định)"),
             ("set_khoang_cach_an_toan(truoc, sau, canh)", "Cài đặt khoảng cách an toàn (truoc, sau, canh). Để None nếu muốn dùng mặc định"),
-            ("set_dinh_vi_xe_linh_kien(mode)", "Định vị xe linh kiện (mode: 'vuong_goc', 'song_song', None)"),
+            ("vung_loai_bo(mode, data)", "Bật/tắt và cài đặt vùng loại bỏ (mode: 'on'/'off'/None, data: [[x1,y1,x2,y2],...] nếu data == None thì sẽ lấy mặc định)"),
         ],
         "cau_truc": [
             ("if / elif / else", "Cấu trúc điều kiện Python"),
             ("for i in range(x)", "Vòng lặp số lần cố định"),
             ("and / or / not", "Toán tử logic"),
-            ("chay_script('tên')", "Chạy script khác đã lưu (tên script phải để trong dấu nháy '')")
+            ("chay_script('tên')", "Chạy script khác đã lưu (tên script phải để trong dấu nháy '')"),
+            ("bien_nho['key'] = val", "Lưu giá trị bền vững giữa các vòng lặp (Ví dụ: bien_nho['check'] = True)")
         ]
     }
 
@@ -258,7 +276,7 @@ class AGVConfig:
 
 
     toa_do_agv_pixel = [1700, 2449]
-    huong_agv_do_img = 30 # góc hợp với trục Ox
+    huong_agv_do_img = 0 # góc hợp với trục Ox
     danh_sach_duong_di = ["C20", "C21"] # danh sách tên các điểm agv sẽ đi qua
     # danh_sach_duong_di mới
     # danh_sach_duong_di = ["C20", "C21"]
@@ -348,7 +366,8 @@ class AGVConfig:
         sin_a = math.sin(angle_rad)
         
         cls.vung_loai_bo_x1y1x2y2_pixel = []
-        
+        # print(cls.vung_loai_bo_x1y1x2y2, type(cls.vung_loai_bo_x1y1x2y2))
+
         for zone in cls.vung_loai_bo_x1y1x2y2:
             # zone: [x1, y1, x2, y2] đơn vị mm
             x1, y1, x2, y2 = zone
@@ -441,6 +460,7 @@ class AGVConfig:
                 with open(path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     # Giả sử file JSON lưu dạng list các vùng [[x1,y1,x2,y2], ...]
+                    # print("Loaded vung_loai_bo_x1y1x2y2 from file:", data)
                     cls.vung_loai_bo_x1y1x2y2 = data
                     cls.loai_bo_coc_xe["ten_vung_loai_bo"] = name
                     cls.update_pixel_exclusion_zones()
@@ -531,7 +551,8 @@ class AGVConfig:
     # loại bỏ 1 số vật cản cố định ở trong vùng an toàn đi khỏi vùng quét của lidar
     loai_bo_coc_xe = {"che_do_lay_mau": 0,"ten_vung_loai_bo": ten_vung_loai_bo_last, "luu_vung_loai_bo": False, "update": 0}
     # giả sử giá trị quét lưu vào biến sau, đơn vị mm và tọa độ là gốc O ở 0,0, là giá trị của loai_bo_coc_xe["vung_loai_bo"]
-    vung_loai_bo_x1y1x2y2 =[[-330,740,-180,1020],[170,770, 375,980],[190,-955,335,-760],[-325,-915,-170,-765]]
+    da_cap_nhat_vung_loai_bo = "" # Cờ báo hiệu đã tải vùng loại bỏ từ file JSON vào biến vung_loai_bo_x1y1x2y2
+    vung_loai_bo_x1y1x2y2 = []
     vung_loai_bo_x1y1x2y2_pixel = []
     tam_thoi_reset_vung_loai_bo = False # nếu bằng True thì tạm thời vung_loai_bo_x1y1x2y2 = [] và vung_loai_bo_x1y1x2y2_pixel = [], khi về False thì sẽ load lại
     # hiển thị vùng chân xe

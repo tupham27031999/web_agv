@@ -11,6 +11,8 @@
     <link rel="icon" href="{{ url_for('static', filename='logo.png') }}">
     <!-- Thư viện OpenSeadragon Local -->
     <script src="{{ url_for('static', filename='openseadragon/openseadragon.min.js') }}"></script>
+    <!-- Thư viện Ace Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.2/ace.js"></script>
     
 </head>
 <body>
@@ -292,17 +294,15 @@
                         <button id="btn-run-script" class="save-btn" style="background-color: #3498db;" onclick="toggleScriptExecution()" title="Chạy Script"><i class="fa-solid fa-play"></i></button>
                         <button class="save-btn" style="background-color: #e74c3c;" onclick="deleteCurrentScript()" title="Xóa Script"><i class="fa-solid fa-trash"></i></button>
                     </div>
-                    <textarea id="code-textarea" spellcheck="false" placeholder="Viết logic tại đây... 
-# Ví dụ Python:
-if vi_tri == 'P1' and trang_thai == 'IDLE':
-    nang_xe()
-    bam_coi()
-elif vi_tri == 'P2':
-    ha_xe()"></textarea>
+                    <!-- Div thay thế cho textarea để nhúng Ace Editor -->
+                    <div id="code-editor"></div>
                     
                     <div class="code-help">
-                        <h4><i class="fa-solid fa-circle-info"></i> Hướng dẫn cú pháp</h4>
-                        <div class="help-grid">
+                        <h4 onclick="toggleCodeHelp()" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                            <span><i class="fa-solid fa-circle-info"></i> Hướng dẫn cú pháp</span>
+                            <i id="help-toggle-icon" class="fa-solid fa-chevron-up"></i>
+                        </h4>
+                        <div id="help-content" class="help-grid">
                             <div class="help-col">
                                 <strong>Đầu vào (Conditions):</strong>
                                 <ul>
@@ -325,6 +325,7 @@ elif vi_tri == 'P2':
                                     {% for item, desc in config.huong_dan_code.cau_truc %}
                                     <li><code>{{ item }}</code>: {{ desc }}</li>
                                     {% endfor %}
+                                    <li><code>bien_nho</code>: Dùng để lưu giá trị bền vững (Ví dụ: <code>bien_nho['goc'] = 90</code>)</li>
                                 </ul>
                             </div>
                         </div>
@@ -623,6 +624,21 @@ elif vi_tri == 'P2':
                 <button id="m-btn-delete" class="modal-btn delete" onclick="deletePoint()" style="display: none;">Xóa điểm</button>
                 <button class="modal-btn cancel" onclick="closePointModal()">Hủy</button>
                 <button class="modal-btn save" onclick="saveNewPoint()">Lưu điểm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Thông báo Lưu Script khi chuyển đổi -->
+    <div id="unsaved-script-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Thay đổi chưa được lưu</h3>
+            <div class="modal-body">
+                <p id="unsaved-modal-msg">Script hiện tại có thay đổi chưa lưu. Bạn có muốn lưu lại trước khi chuyển không?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn delete" id="btn-no-save">Không lưu</button>
+                <button class="modal-btn cancel" onclick="closeUnsavedModal()">Hủy</button>
+                <button class="modal-btn save" id="btn-yes-save">Lưu</button>
             </div>
         </div>
     </div>

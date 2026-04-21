@@ -1,0 +1,5 @@
+{
+    "name": "logic_an_toan",
+    "content": "if xy_lanh == \"nang\":\n    vung_loai_bo(\"on\", None)\nelse:\n    vung_loai_bo(\"off\", None)",
+    "updated_at": "2026-04-21 10:22:15"
+}
