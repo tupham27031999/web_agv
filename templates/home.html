@@ -64,7 +64,13 @@
         <div id="homeTab" class="tab-content active">
             <div class="main-layout">
                 <!-- Phần hiển thị bản đồ -->
-                <div id="osd-viewer" class="map-view"></div>
+                <div id="osd-viewer" class="map-view">
+                    <!-- Khung Camera PIP (Picture-in-Picture) -->
+                    <div id="camera-overlay" class="camera-overlay" style="display: none;">
+                        <img id="camera-frame" src="" alt="Camera Feed">
+                        <div class="camera-label"><i class="fa-solid fa-video"></i> Camera</div>
+                    </div>
+                </div>
                 
                 <!-- Thanh công cụ bên phải -->
                 <div class="side-toolbar">
@@ -101,6 +107,14 @@
                                 onclick="toggleLidarView(event)">
                             <i class="fa-solid {{ 'fa-eye' if config.an_hien_diem_lidar_icp else 'fa-eye-slash' }}"></i>
                             <span>Hiện điểm Lidar</span>
+                        </button>
+                        
+                        <!-- NEW: Nút điều khiển hiển thị Camera -->
+                        <button id="btn-camera-display-mode"
+                                class="action-btn"
+                                onclick="toggleCameraDisplayMode()">
+                            <i class="fa-solid fa-camera"></i>
+                            <span id="camera-display-mode-text">Camera: {{ config.trang_thai_hien_thi_img | upper }}</span>
                         </button>
 
                         <hr class="separator">
@@ -300,9 +314,9 @@
                     <div class="code-help">
                         <h4 onclick="toggleCodeHelp()" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
                             <span><i class="fa-solid fa-circle-info"></i> Hướng dẫn cú pháp</span>
-                            <i id="help-toggle-icon" class="fa-solid fa-chevron-up"></i>
+                            <i id="help-toggle-icon" class="fa-solid fa-chevron-down"></i>
                         </h4>
-                        <div id="help-content" class="help-grid">
+                        <div id="help-content" class="help-grid" style="display: none;">
                             <div class="help-col">
                                 <strong>Đầu vào (Conditions):</strong>
                                 <ul>
@@ -357,19 +371,19 @@
                             <div class="radio-group">
                                 <label class="radio-label">
                                     <input type="radio" name="control-mode" value="auto" 
-                                           {{ 'checked' if not config.dieu_khien_agv.dieu_khien_thu_cong }} 
+                                           {{ 'checked' if not config.dieu_khien_thu_cong.dieu_khien_thu_cong }} 
                                            onchange="setControlMode(false)">
                                     <span>Tự động</span>
                                 </label>
                                 <label class="radio-label">
                                     <input type="radio" name="control-mode" value="manual" 
-                                           {{ 'checked' if config.dieu_khien_agv.dieu_khien_thu_cong }}
+                                           {{ 'checked' if config.dieu_khien_thu_cong.dieu_khien_thu_cong }}
                                            onchange="setControlMode(true)">
                                     <span>Thủ công</span>
                                 </label>
                             </div>
 
-                            <div id="manual-control-pad" class="control-pad" style="{{ 'display: flex;' if config.dieu_khien_agv.dieu_khien_thu_cong else 'display: none;' }}">
+                            <div id="manual-control-pad" class="control-pad" style="{{ 'display: flex;' if config.dieu_khien_thu_cong.dieu_khien_thu_cong else 'display: none;' }}">
                                 <div class="pad-row">
                                     <button class="pad-btn" id="ctrl-tien" onmousedown="updateDirection('tien', 1)" onmouseup="updateDirection('tien', 0)" onmouseleave="updateDirection('tien', 0)"><i class="fa-solid fa-caret-up"></i></button>
                                 </div>
@@ -528,6 +542,28 @@
                         </div>
                     </div>
 
+                    <!-- Camera Card -->
+                    <div class="device-card" id="card-camera">
+                        <div class="device-header">
+                            <i class="fa-solid fa-camera"></i>
+                            <h3>Camera</h3>
+                            <span class="status-dot"></span>
+                        </div>
+                        <div class="device-body">
+                            <p class="status-message">None</p>
+                            <div class="device-controls">
+                                <div class="control-group">
+                                    <label>USB Index</label>
+                                    <div class="fixed-value">{{ config.camera.usb_camera_index }}</div>
+                                </div>
+                                <div class="control-group">
+                                    <label>Model</label>
+                                    <div class="fixed-value">{{ config.camera.Model }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Connection Settings Card -->
                     <div class="device-card">
                         <div class="device-header">
@@ -658,7 +694,7 @@
         window.mapWidth = {{ config.w_pixel }};
         window.mapHeight = {{ config.h_pixel }};
         window.mappingUpdateSize = {{ config.kich_thuoc_mapping_update | tojson }};
-        window.initialManualControl = {{ config.dieu_khien_agv | tojson }};
+        window.initialManualControl = {{ config.dieu_khien_thu_cong | tojson }};
         window.thoiGianCapNhat = {{ config.thoi_gian_cap_nhat | tojson }};
         window.isCharging = {{ config.sac_pin | tojson }};
         window.currentRunState = {{ config.run_state | tojson }};

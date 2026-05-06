@@ -105,6 +105,30 @@ async function toggleLidarView(event) {
     }
 }
 
+async function toggleCameraDisplayMode() {
+    const modes = ["off", "on", "auto"];
+    const currentMode = document.getElementById('camera-display-mode-text').innerText.split(': ')[1].toLowerCase();
+    const currentIndex = modes.indexOf(currentMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    const newMode = modes[nextIndex];
+
+    const response = await fetch('/api/set_camera_display_mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: newMode })
+    });
+
+    if (response.ok) {
+        const result = await response.json();
+        // Cập nhật ngay lập tức trên UI để phản hồi nhanh
+        document.getElementById('camera-display-mode-text').innerText = `Camera: ${result.new_mode.toUpperCase()}`;
+        // updateStatusUI sẽ đồng bộ màu sắc và trạng thái hiển thị camera overlay
+    } else {
+        const errorData = await response.json();
+        console.error("Lỗi khi cập nhật chế độ hiển thị camera:", errorData.message);
+    }
+}
+
 function updateVelocity(key, value) {
     postUpdate(key, parseInt(value));
 }
@@ -1247,9 +1271,9 @@ async function updateStatusUI() {
         }
 
         // Đồng bộ trạng thái các nút nâng hạ xe từ server
-        if (data.dieu_khien_agv) {
+        if (data.dieu_khien_thu_cong) {
             ['nang_xe', 'ha_xe'].forEach(action => {
-                const val = data.dieu_khien_agv[action];
+                const val = data.dieu_khien_thu_cong[action];
                 // Cập nhật trạng thái cục bộ để đồng bộ với server
                 manualControlState[action] = val;
                 // Cập nhật màu sắc nút (class btn-active cho màu cam)
@@ -1271,7 +1295,7 @@ async function updateStatusUI() {
         // Chỉ cập nhật các thành phần nặng của tab Home nếu KHÔNG ở trong trạng thái đang Mapping tập trung
         if (!isMappingTabActive || !isMappingWorkInProgress) {
             if (window.updatePlannedPath) {
-                window.updatePlannedPath(data.toa_do_agv_pixel[0], data.toa_do_agv_pixel[1], data.danh_sach_duong_di);
+                window.updatePlannedPath(data.toa_do_agv_pixel[0], data.toa_do_agv_pixel[1], data.danh_sach_duong_di, data.diem_tiep_theo, data.diem_vua_di_qua);
             }
             if (window.updateLidarPoints) {
                 window.updateLidarPoints(data.danh_sach_diem_lidar, data.danh_sach_diem_vat_can);
@@ -1363,6 +1387,33 @@ async function updateStatusUI() {
             }
         }
 
+        // Đồng bộ trạng thái nút chạy Script trong Editor
+        const scriptNameInput = document.getElementById('script-name');
+        const btnRunScript = document.getElementById('btn-run-script');
+        if (scriptNameInput && btnRunScript) {
+            const editorName = scriptNameInput.value.trim();
+            const isThisScriptRunning = (data.ten_script_dang_chay === editorName && editorName !== "");
+            
+            if (isThisScriptRunning) {
+                btnRunScript.innerHTML = '<i class="fa-solid fa-stop"></i>';
+                btnRunScript.style.backgroundColor = '#e74c3c';
+                btnRunScript.classList.add('btn-stop');
+            } else {
+                btnRunScript.innerHTML = '<i class="fa-solid fa-play"></i>';
+                btnRunScript.style.backgroundColor = '#3498db';
+                btnRunScript.classList.remove('btn-stop');
+            }
+        }
+
+        // Cập nhật class 'running' trong danh sách script sidebar
+        document.querySelectorAll('.script-item').forEach(item => {
+            if (item.innerText === data.ten_script_dang_chay && data.ten_script_dang_chay !== "") {
+                item.classList.add('running');
+            } else {
+                item.classList.remove('running');
+            }
+        });
+
         // Đồng bộ trạng thái nút cập nhật tất cả điểm
         if (data.update_all_point_in_map !== undefined) {
             const updateBtn = document.getElementById('btn-update-all-points');
@@ -1381,8 +1432,30 @@ async function updateStatusUI() {
             destMarker.style.display = isMapping ? "none" : "block";
         }
 
+        // Cập nhật trạng thái nút điều khiển hiển thị Camera
+        const cameraDisplayModeBtn = document.getElementById('btn-camera-display-mode');
+        const cameraDisplayModeText = document.getElementById('camera-display-mode-text');
+        if (cameraDisplayModeBtn && cameraDisplayModeText && data.trang_thai_hien_thi_img !== undefined) {
+            cameraDisplayModeText.innerText = `Camera: ${data.trang_thai_hien_thi_img.toUpperCase()}`;
+            // Có thể thêm class để đổi màu nút nếu muốn, ví dụ:
+            cameraDisplayModeBtn.classList.toggle('btn-run', data.trang_thai_hien_thi_img !== 'off');
+            cameraDisplayModeBtn.classList.toggle('btn-lidar-off', data.trang_thai_hien_thi_img === 'off');
+            cameraDisplayModeBtn.classList.remove('btn-stop'); // Đảm bảo không bị màu đỏ
+        }
+        // Cập nhật hiển thị Camera PIP
+        const cameraOverlay = document.getElementById('camera-overlay');
+        const cameraFrame = document.getElementById('camera-frame');
+        if (data.hien_thi_camera) {
+            cameraOverlay.style.display = 'block';
+            // Cập nhật ảnh với timestamp để tránh cache trình duyệt
+            cameraFrame.src = `/api/camera_image?v=${Date.now()}`;
+        } else {
+            cameraOverlay.style.display = 'none';
+            cameraFrame.src = ''; // Giải phóng tài nguyên
+        }
+
         // Cập nhật trạng thái thiết bị trong Tab Setting
-        ['lidar1', 'lidar2', 'esp32', 'driver_motor', 'pin'].forEach(devKey => {
+        ['lidar1', 'lidar2', 'esp32', 'driver_motor', 'pin', 'camera'].forEach(devKey => {
             const devData = data[devKey];
             const card = document.getElementById(`card-${devKey}`);
             if (card && devData) {

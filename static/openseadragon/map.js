@@ -394,6 +394,8 @@ document.addEventListener("DOMContentLoaded", function() {
      * Cập nhật Marker AGV thời gian thực
      */
     window.updateAGVPosition = function(x, y, heading, size, isGhost = false) {
+    if (!window._agvRotationCache) window._agvRotationCache = {};
+
         const id = isGhost ? "agv-ghost-marker" : "agv-live-marker";
         let container = document.getElementById(id);
         
@@ -438,8 +440,20 @@ document.addEventListener("DOMContentLoaded", function() {
         // Cập nhật tỷ lệ khung hình (aspect-ratio) và góc xoay
         container.style.aspectRatio = `${size[0]} / ${size[1]}`;
         const rect = document.getElementById(id + "-rect");
+
         if (rect) {
-            rect.style.transform = `rotate(${-heading}deg)`;
+        // Lấy góc cộng dồn hiện tại từ cache, mặc định là góc khởi tạo
+        let lastAngle = window._agvRotationCache[id] || heading;
+        
+        // Tính toán độ lệch ngắn nhất (Shortest Path Rotation)
+        let delta = (heading - (lastAngle % 360 + 360) % 360);
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+
+        let targetAngle = lastAngle + delta;
+        window._agvRotationCache[id] = targetAngle;
+
+        rect.style.transform = `rotate(${-targetAngle}deg)`;
         }
     };
 
@@ -450,7 +464,7 @@ document.addEventListener("DOMContentLoaded", function() {
     /**
      * Vẽ lộ trình dự kiến từ AGV đến các điểm đích
      */
-    window.updatePlannedPath = function(agvX, agvY, pathPoints) {
+window.updatePlannedPath = function(agvX, agvY, pathPoints, nextPointName, prevPointName) {
         if (window.isCreateMapMode) {
             viewer.removeOverlay("destination-target-marker");
             return;
@@ -466,20 +480,59 @@ document.addEventListener("DOMContentLoaded", function() {
 
         if (!pathPoints || pathPoints.length === 0) return;
 
-        // 1. Vẽ đường nối từ AGV đến điểm đầu tiên trong lộ trình (thường là đường thẳng)
-        const firstPtName = pathPoints[0];
-        const firstPtCoord = window.pointsCache[firstPtName];
-        if (firstPtCoord) {
+    // Tạo bản sao để không làm hỏng dữ liệu gốc
+    let displayPoints = [...pathPoints];
+
+    // Cắt bỏ các điểm đã đi qua hoàn toàn dựa trên điểm tiếp theo của AGV
+    if (nextPointName && displayPoints.includes(nextPointName)) {
+        const index = displayPoints.indexOf(nextPointName);
+        displayPoints = displayPoints.slice(index);
+    }
+
+    const nextPtName = displayPoints[0];
+    const nextPtCoord = window.pointsCache[nextPtName];
+    
+    let processedFirstSegment = false;
+
+    // 1. Vẽ phân đoạn hiện tại (từ điểm vừa đi qua tới điểm sắp tới)
+    if (prevPointName && nextPtName && nextPtName !== prevPointName) {
+        const p1 = window.pointsCache[prevPointName];
+        if (p1 && nextPtCoord) {
+            const pathInfo = window.pathsCache[`${prevPointName}_${nextPtName}`] || window.pathsCache[`${nextPtName}_${prevPointName}`];
+            if (pathInfo) {
+                const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                pathEl.setAttribute("class", "planned-path-line");
+
+                if (pathInfo[1] === "curve" && pathInfo[2]) {
+                    const control = pathInfo[2];
+                    let cx, cy;
+                    if (typeof control === 'string' && window.pointsCache[control]) {
+                        [cx, cy] = window.pointsCache[control];
+                    } else if (Array.isArray(control)) {
+                        [cx, cy] = control;
+                    }
+                    pathEl.setAttribute("d", `M ${p1[0]} ${p1[1]} Q ${cx} ${cy} ${nextPtCoord[0]} ${nextPtCoord[1]}`);
+                } else {
+                    pathEl.setAttribute("d", `M ${p1[0]} ${p1[1]} L ${nextPtCoord[0]} ${nextPtCoord[1]}`);
+                }
+                svg.appendChild(pathEl);
+                processedFirstSegment = true;
+            }
+        }
+    }
+
+    // Nếu không vẽ được phân đoạn từ điểm cũ (ví dụ AGV bị lệch lộ trình), vẽ đường thẳng từ AGV tới đích
+    if (!processedFirstSegment && nextPtCoord) {
             const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
-            pathEl.setAttribute("d", `M ${agvX} ${agvY} L ${firstPtCoord[0]} ${firstPtCoord[1]}`);
+        pathEl.setAttribute("d", `M ${agvX} ${agvY} L ${nextPtCoord[0]} ${nextPtCoord[1]}`);
             pathEl.setAttribute("class", "planned-path-line");
             svg.appendChild(pathEl);
         }
-
-        // 2. Vẽ các đoạn đường giữa các điểm (Tra cứu xem là thẳng hay cong)
-        for (let i = 0; i < pathPoints.length - 1; i++) {
-            const p1Name = pathPoints[i];
-            const p2Name = pathPoints[i+1];
+    
+    // 2. Vẽ các đoạn đường kế tiếp trong danh sách
+    for (let i = 0; i < displayPoints.length - 1; i++) {
+        const p1Name = displayPoints[i];
+        const p2Name = displayPoints[i+1];
             const p1 = window.pointsCache[p1Name];
             const p2 = window.pointsCache[p2Name];
             if (!p1 || !p2) continue;
@@ -510,8 +563,8 @@ document.addEventListener("DOMContentLoaded", function() {
             svg.appendChild(pathEl);
         }
 
-        // 3. Vẽ icon đích đến cuối cùng (màu đỏ)
-        const lastPtName = pathPoints[pathPoints.length - 1];
+    // 3. Vẽ icon đích đến cuối cùng
+    const lastPtName = displayPoints[displayPoints.length - 1];
         const lastPt = window.pointsCache[lastPtName];
         if (lastPt) {
             const destIcon = document.createElement("div");

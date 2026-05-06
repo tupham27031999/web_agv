@@ -112,6 +112,38 @@ def map_region():
         return response
     return "Crop error", 404
 
+@app.route('/api/camera_image')
+def camera_image():
+    """
+    API trả về ảnh camera hiện tại. 
+    Thu nhỏ và nén chất lượng để tiết kiệm tài nguyên mạng.
+    """
+    frame = AGVConfig.img_camera
+    # Thu nhỏ ảnh xuống chiều rộng 320px để làm ảnh nhỏ (PIP)
+    h, w = frame.shape[:2]
+    target_w = 320
+    target_h = int(h * (target_w / w))
+    resized_frame = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_AREA)
+
+    is_success, buffer = cv2.imencode(".jpg", resized_frame, [cv2.IMWRITE_JPEG_QUALITY, 50])
+    if is_success:
+        response = Response(buffer.tobytes(), mimetype='image/jpeg')
+        return response
+    return "Error", 500
+
+@app.route('/api/set_camera_display_mode', methods=['POST'])
+def set_camera_display_mode():
+    """
+    API để cập nhật trạng thái hiển thị camera (off, on, auto).
+    """
+    data = request.json
+    new_mode = data.get('mode')
+    if new_mode in ["off", "on", "auto"]:
+        AGVConfig.trang_thai_hien_thi_img = new_mode
+        AGVConfig.save_to_file() # Lưu ngay vào last_config.json
+        return jsonify({"status": "success", "new_mode": new_mode})
+    return jsonify({"status": "error", "message": "Chế độ không hợp lệ"}), 400
+
 @app.route('/api/status')
 def get_status():
     """
@@ -119,13 +151,16 @@ def get_status():
     """
     # Cập nhật tọa độ pixel của các vùng chân xe theo vị trí AGV hiện tại trước khi gửi đi
     AGVConfig.update_pixel_exclusion_zones()
+
     return jsonify({
         "phan_tram_pin": AGVConfig.phan_tram_pin,
         "run_state": AGVConfig.run_state,
         "motor_state": AGVConfig.motor_state,
         "toa_do_agv_pixel": AGVConfig.toa_do_agv_pixel,
         "huong_agv_do_img": AGVConfig.huong_agv_do_img,
-        "danh_sach_duong_di": AGVConfig.danh_sach_duong_di,
+        "danh_sach_duong_di": AGVConfig.AGV_STATES[AGVConfig.name_agv]["thong_tin_agv"]["danh_sach_duong_di"],
+        "diem_vua_di_qua": AGVConfig.AGV_STATES[AGVConfig.name_agv]["thong_tin_agv"]["diem_vua_di_qua"],
+        "diem_tiep_theo": AGVConfig.AGV_STATES[AGVConfig.name_agv]["thong_tin_agv"]["diem_tiep_theo"],
         "kich_thuoc_agv": AGVConfig.kich_thuoc_agv,
         # Sử dụng slicing [::skip] để giảm số điểm gửi lên Web nhanh chóng
         "danh_sach_diem_lidar": AGVConfig.danh_sach_diem_lidar_icp[::AGVConfig.lidar_display_skip, :2].tolist() if (AGVConfig.an_hien_diem_lidar_icp or AGVConfig.che_do_tao_ban_do) else [],
@@ -135,9 +170,11 @@ def get_status():
         "hien_thi_chan_xe": AGVConfig.hien_thi_chan_xe,
         "lidar1": AGVConfig.lidar1,
         "lidar2": AGVConfig.lidar2,
+        "ten_script_dang_chay": AGVConfig.ten_script_dang_chay, # Thêm thông tin này
         "esp32": AGVConfig.esp32,
         "driver_motor": AGVConfig.driver_motor,
         "pin": AGVConfig.pin,
+        "camera": AGVConfig.camera, # Thêm camera vào response
         "che_do_tao_ban_do": AGVConfig.che_do_tao_ban_do,
         "tao_ban_do_moi": AGVConfig.tao_ban_do_moi,
         "chinh_sua_ban_do": AGVConfig.chinh_sua_ban_do,
@@ -147,8 +184,10 @@ def get_status():
         "update_all_point_in_map": AGVConfig.update_all_point_in_map,
         "tam_thoi_reset_vung_loai_bo": AGVConfig.tam_thoi_reset_vung_loai_bo,
         "cap_nhat_ban_do_1_lan_web": AGVConfig.cap_nhat_ban_do_1_lan_web,
+        "hien_thi_camera": AGVConfig.hien_thi_camera, # Gửi trạng thái hiển thị camera
+        "trang_thai_hien_thi_img": AGVConfig.trang_thai_hien_thi_img, # Gửi chế độ hiển thị camera
         "thoi_gian_cap_nhat": AGVConfig.thoi_gian_cap_nhat,
-        "dieu_khien_agv": AGVConfig.dieu_khien_agv,
+        "dieu_khien_thu_cong": AGVConfig.dieu_khien_thu_cong,
         "sac_pin": AGVConfig.sac_pin,
         "tat_phan_mem": AGVConfig.tat_phan_mem,
         "server_shutdown_imminent": AGVConfig.server_shutdown_imminent, # NEW: Báo hiệu server sắp tắt
@@ -412,14 +451,14 @@ def manual_control():
     # Cập nhật trạng thái vào Config
     for key in ['dieu_khien_thu_cong', 'tien', 'lui', 'trai', 'phai', 'ha_xe', 'nang_xe']:
         if key in data:
-            config.AGVConfig.dieu_khien_agv[key] = data[key]
+            config.AGVConfig.dieu_khien_thu_cong[key] = data[key]
     
     config.AGVConfig.last_manual_command_time = time.time() # Cập nhật thời gian nhận lệnh cuối cùng
     
     # Debug log (tùy chọn)
-    # print("Manual Control State:", config.AGVConfig.dieu_khien_agv)
+    # print("Manual Control State:", config.AGVConfig.dieu_khien_thu_cong)
     
-    return jsonify({"status": "success", "data": config.AGVConfig.dieu_khien_agv})
+    return jsonify({"status": "success", "data": config.AGVConfig.dieu_khien_thu_cong})
 
 @app.route('/api/code/activate', methods=['POST'])
 def activate_script():
@@ -429,17 +468,19 @@ def activate_script():
         AGVConfig.ten_script_dang_chay = ""
         AGVConfig.noi_dung_script_dang_chay = ""
         AGVConfig.du_lieu_script_dang_chay = {}
-        AGVConfig.bien_nho_code = {} # Reset bộ nhớ khi tắt script
+        AGVConfig.bien_nho_code = {}
+        AGVConfig.save_to_file() # Lưu trạng thái không chạy script
         return jsonify({"status": "success", "active": ""})
 
     file_path = os.path.join(config.path_folder_scripts, f"{name}.json")
     if os.path.exists(file_path):
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        AGVConfig.bien_nho_code = {} # Reset bộ nhớ khi đổi script mới
+        AGVConfig.bien_nho_code = {}
         AGVConfig.ten_script_dang_chay = name
         AGVConfig.noi_dung_script_dang_chay = data.get('content', '')
         AGVConfig.du_lieu_script_dang_chay = data
+        AGVConfig.save_to_file() # Lưu trạng thái script đang chạy
         return jsonify({"status": "success", "active": name})
     return jsonify({"status": "error", "message": "Không tìm thấy file"}), 404
 
@@ -526,39 +567,61 @@ def run_script_interpreter():
     Hàm này tạo ra một môi trường cô lập, cung cấp các hàm điều khiển xe
     và các biến trạng thái để script của người dùng có thể đọc/ghi.
     """
-
     if not AGVConfig.noi_dung_script_dang_chay:
         return
-    print(AGVConfig.bien_nho_code)
+    AGVConfig.bien_nho_code["van_toc_tien_max"] = []
+    AGVConfig.bien_nho_code["van_toc_re_max"] = []
+    AGVConfig.bien_nho_code["kiem_tra_loi"] = {"nang_ha_xe": [], "xoay_goc": [], "set_khoang_cach_an_toan": [], "vung_loai_bo": []}
+    AGVConfig.xoay_goc_code = None
+    AGVConfig.xoay_goc_mode_code = 0
+    AGVConfig.music_name_code = None
+    AGVConfig.stop_code = None
+    AGVConfig.kc_an_toan_truoc_code = None
+    AGVConfig.kc_an_toan_sau_code = None
+    AGVConfig.kc_an_toan_ben_canh_code = None
+    AGVConfig.data_vung_loai_bo_code = None
+
     try:
         # 2. Định nghĩa các hàm "Đầu ra" (Actions) cho người dùng
         def nang_ha_xe(trang_thai):
             AGVConfig.nang_ha_xe_code = trang_thai
+            AGVConfig.bien_nho_code["kiem_tra_loi"]["nang_ha_xe"].append(trang_thai)
 
         def bam_coi(music_name="bam_coi"):
             AGVConfig.music_name_code = music_name
+            AGVConfig.bien_nho_code["kiem_tra_loi"]["bam_coi"].append(music_name)
 
-        def dung(giay):
-            # Ở đây mô phỏng đơn giản, thực tế nên dùng biến đếm thời gian
-            AGVConfig.dung_trong_giay_code = giay
-            # print(giay, type(giay)) # None <class 'NoneType'>
+
+        def stop_agv():
+            # tạm dùng agv khi gọi
+            AGVConfig.stop_code = True
+
 
         def cho_lenh():
             """Hàm dừng kịch bản và đợi tín hiệu từ bên ngoài (API)"""
             AGVConfig.stop_code_resume = True
 
         def set_toc_do_tien(v):
-            AGVConfig.van_toc_tien_max_code = v
+            if "van_toc_tien_max" not in AGVConfig.bien_nho_code:
+                AGVConfig.bien_nho_code["van_toc_tien_max"] = [v]
+            else:
+                AGVConfig.bien_nho_code["van_toc_tien_max"].append(v)
+
 
         def set_toc_do_re(v):
-            AGVConfig.van_toc_re_max_code = v
+            if "van_toc_re_max" not in AGVConfig.bien_nho_code:
+                AGVConfig.bien_nho_code["van_toc_re_max"] = [v]
+            else:
+                AGVConfig.bien_nho_code["van_toc_re_max"].append(v)
 
         def xoay_goc(ang, mode=0):
+            AGVConfig.bien_nho_code["kiem_tra_loi"]["xoay_goc"].append([ang, mode])
             AGVConfig.xoay_goc_code = ang
             AGVConfig.xoay_goc_mode_code = mode
-            print(f"Script yêu cầu xoay góc {ang} độ, mode {mode}", type(ang), type(mode)) # test
+            # print(f"Script yêu cầu xoay góc {ang} độ, mode {mode}", type(ang), type(mode)) # test
 
         def set_khoang_cach_an_toan(truoc, sau, canh):
+            AGVConfig.bien_nho_code["kiem_tra_loi"]["set_khoang_cach_an_toan"].append([truoc, sau, canh])
             AGVConfig.kc_an_toan_truoc_code = truoc
             AGVConfig.kc_an_toan_sau_code = sau
             AGVConfig.kc_an_toan_ben_canh_code = canh
@@ -567,20 +630,9 @@ def run_script_interpreter():
             """Thiết lập hiển thị và dữ liệu vùng loại bỏ chân xe"""
             if data == None:
                 data = []
-            if AGVConfig.loai_bo_coc_xe["che_do_lay_mau"] == 0:
-                if mode == "on":
-                    if AGVConfig.da_cap_nhat_vung_loai_bo != "on" or AGVConfig.vung_loai_bo_x1y1x2y2 != data:
-                        AGVConfig.vung_loai_bo_x1y1x2y2 = data
-                        AGVConfig.update_pixel_exclusion_zones()
-                elif mode == "off":
-                    if AGVConfig.da_cap_nhat_vung_loai_bo != "off":
-                        AGVConfig.vung_loai_bo_x1y1x2y2 = data
-                        AGVConfig.vung_loai_bo_x1y1x2y2_pixel = data
-                else:
-                    if AGVConfig.da_cap_nhat_vung_loai_bo != None:
-                        AGVConfig.load_loai_bo(AGVConfig.loai_bo_coc_xe["ten_vung_loai_bo"])
-                        AGVConfig.update_pixel_exclusion_zones()
-                AGVConfig.da_cap_nhat_vung_loai_bo = mode
+            AGVConfig.bien_nho_code["kiem_tra_loi"]["vung_loai_bo"].append([mode, data])
+            AGVConfig.data_vung_loai_bo_code = [mode, data]
+            
             
         def chay_script(name):
             """Hàm thực thi một script khác đã được lưu"""
@@ -601,24 +653,28 @@ def run_script_interpreter():
         # Chúng ta chỉ cho phép script truy cập vào các hàm và biến ta chỉ định
         safe_env = {
             # Các biến "Đầu vào" (Sensors/Status)
-            'vi_tri_hien_tai': AGVConfig.vi_tri_hien_tai_code,
-            'vi_tri_tiep_theo': AGVConfig.vi_tri_tiep_theo_code,
-            'vi_tri_diem_cuoi': AGVConfig.vi_tri_diem_cuoi,
-            'trang_thai': AGVConfig.trang_thai_code,
+            'diem_vua_di_qua': AGVConfig.diem_vua_di_qua_code,
+            'diem_tiep_theo': AGVConfig.diem_tiep_theo_code,
+            'diem_cuoi': AGVConfig.diem_cuoi_code,
+            'yeu_cau_gui_agv': AGVConfig.yeu_cau_gui_agv_code,
             'april_tag': AGVConfig.april_tag_code,
             'xy_lanh': AGVConfig.xy_lanh_code,
-            'khoang_cach_den_dich': AGVConfig.khoang_cach_den_dich_code,
+            'khoang_cach_den_diem_cuoi': AGVConfig.khoang_cach_den_diem_cuoi_code,
+            'khoang_cach_den_diem_tiep_theo': AGVConfig.khoang_cach_den_diem_tiep_theo_code,
             'da_den_diem_tiep_theo': AGVConfig.da_den_diem_tiep_theo_code,
             'van_toc_trai': AGVConfig.van_toc_phan_hoi_trai,
             'van_toc_phai': AGVConfig.van_toc_phan_hoi_phai,
             'goc_agv': AGVConfig.huong_agv_do_img,
             'danh_sach_duong_di': AGVConfig.danh_sach_duong_di_code,
             'bien_nho': AGVConfig.bien_nho_code,
+            'dang_re': AGVConfig.dang_re_code,
+            'di_thuan_nguoc': AGVConfig.di_thuan_nguoc_code,
+            'stop_resume': AGVConfig.stop_code_resume,
             
             # Các hàm "Đầu ra" (Commands)
             'nang_ha_xe': nang_ha_xe,
             'bam_coi': bam_coi,
-            'dung': dung,
+            'stop': stop_agv,
             'cho_lenh': cho_lenh,
             'set_toc_do_tien': set_toc_do_tien,
             'set_toc_do_re': set_toc_do_re,
@@ -643,6 +699,76 @@ def run_script_interpreter():
         # Nếu code người dùng gõ sai logic (chia cho 0, gọi hàm không tồn tại...)
         # ta bắt lỗi ở đây để không làm sập toàn bộ app.py
         print(f"Lỗi logic trong script '{AGVConfig.ten_script_dang_chay}': {e}")
+    # print("AGVConfig.bien_nho_code", AGVConfig.bien_nho_code)
+    if len(AGVConfig.bien_nho_code["van_toc_tien_max"]) == 0:
+        AGVConfig.van_toc_tien_max_code = None
+    elif len(AGVConfig.bien_nho_code["van_toc_tien_max"]) == 1:
+        AGVConfig.van_toc_tien_max_code = AGVConfig.bien_nho_code["van_toc_tien_max"][0]
+    else:
+        AGVConfig.van_toc_tien_max_code = min(AGVConfig.bien_nho_code["van_toc_tien_max"])
+
+    if len(AGVConfig.bien_nho_code["van_toc_re_max"]) == 0:
+        AGVConfig.van_toc_re_max_code = None
+    elif len(AGVConfig.bien_nho_code["van_toc_re_max"]) == 1:
+        AGVConfig.van_toc_re_max_code = AGVConfig.bien_nho_code["van_toc_re_max"][0]
+    else:
+        AGVConfig.van_toc_re_max_code = min(AGVConfig.bien_nho_code["van_toc_re_max"])
+
+
+    error_tab_code = False
+    # xử lý dữ liệu vùng loại bỏ
+    if AGVConfig.data_vung_loai_bo_code is not None:
+        if len(AGVConfig.data_vung_loai_bo_code) == 2:
+            if AGVConfig.data_vung_loai_bo_code[0] != AGVConfig.da_cap_nhat_vung_loai_bo:
+                if AGVConfig.data_vung_loai_bo_code[0] == "on":
+                    AGVConfig.vung_loai_bo_x1y1x2y2 = AGVConfig.data_vung_loai_bo_code[1]
+                    AGVConfig.update_pixel_exclusion_zones()
+                elif AGVConfig.data_vung_loai_bo_code[0] == "off":
+                    AGVConfig.vung_loai_bo_x1y1x2y2 = []
+                    AGVConfig.vung_loai_bo_x1y1x2y2_pixel = []
+                AGVConfig.da_cap_nhat_vung_loai_bo = AGVConfig.data_vung_loai_bo_code[0]
+        else:
+            print("lỗi dữ liệu vùng loại bỏ: ", str(AGVConfig.data_vung_loai_bo_code))
+            error_tab_code = True
+    else:
+        if AGVConfig.da_cap_nhat_vung_loai_bo != "":
+            AGVConfig.load_loai_bo(AGVConfig.loai_bo_coc_xe["ten_vung_loai_bo"])
+            AGVConfig.update_pixel_exclusion_zones()
+            AGVConfig.da_cap_nhat_vung_loai_bo = ""
+        
+    
+    # kiểm tra lỗi nâng hạ
+    trang_thai_nang_ha = None
+    for i in range(0, len(AGVConfig.bien_nho_code["kiem_tra_loi"]["nang_ha_xe"])):
+        if trang_thai_nang_ha is None:
+            trang_thai_nang_ha = AGVConfig.bien_nho_code["kiem_tra_loi"]["nang_ha_xe"][i]
+        else:
+            if trang_thai_nang_ha != AGVConfig.bien_nho_code["kiem_tra_loi"]["nang_ha_xe"][i]:
+                print("lỗi script đã thực hiện vừa nâng vừa hạ: ", str(AGVConfig.bien_nho_code["kiem_tra_loi"]["nang_ha_xe"]))
+                error_tab_code = True
+                break
+
+    # Kiểm tra lỗi xoay góc
+    if len(AGVConfig.bien_nho_code["kiem_tra_loi"]["xoay_goc"]) >= 2:
+        print("lỗi script đã thực hiện xoay góc 2 lần: ", str(AGVConfig.bien_nho_code["kiem_tra_loi"]["xoay_goc"]))
+        error_tab_code = True
+
+    # kiểm tra lỗi an toàn
+    if len(AGVConfig.bien_nho_code["kiem_tra_loi"]["set_khoang_cach_an_toan"]) >= 2:
+        print("lỗi script đã thực hiện set khoảng cách an toàn 2 lần: ", str(AGVConfig.bien_nho_code["kiem_tra_loi"]["set_khoang_cach_an_toan"]))
+        error_tab_code = True
+    
+    # kiểm tra lỗi vùng loại bỏ
+    if len(AGVConfig.bien_nho_code["kiem_tra_loi"]["vung_loai_bo"]) >= 2:
+        print("lỗi script đã thực hiện vùng loại bỏ 2 lần: ", str(AGVConfig.bien_nho_code["kiem_tra_loi"]["vung_loai_bo"]))
+        error_tab_code = True
+
+    AGVConfig.error_tab_code = error_tab_code
+
+
+
+
+    
 
 def log_communication(log_type, timestamp_str, signal_value):
     """
@@ -673,39 +799,13 @@ def log_communication(log_type, timestamp_str, signal_value):
 def pc_sent_agv_endpoint():
     data = request.get_json()
     if data:
+        thoi_gian_nhan_str = time.strftime("%Y-%m-%d %H:%M:%S")
         tin_hieu_nhan = data
         # cập nhật các thông tin cần thiết'
-        AGVConfig.tin_hieu_nhan[AGVConfig.name_agv]["dich_den"]             = tin_hieu_nhan[AGVConfig.name_agv]["dich_den"]
-        AGVConfig.tin_hieu_nhan[AGVConfig.name_agv]["trang_thai_gui_agv"]   = tin_hieu_nhan[AGVConfig.name_agv]["trang_thai_gui_agv"]
-        AGVConfig.tin_hieu_nhan[AGVConfig.name_agv]["paths"]                = tin_hieu_nhan[AGVConfig.name_agv]["paths"]
-        AGVConfig.tin_hieu_nhan[AGVConfig.name_agv]["stop"]                 = tin_hieu_nhan[AGVConfig.name_agv]["stop"]
-        AGVConfig.tin_hieu_nhan[AGVConfig.name_agv]["di_chuyen_khong_hang"] = tin_hieu_nhan[AGVConfig.name_agv]["di_chuyen_khong_hang"]
-        thoi_gian_nhan_str = time.strftime("%Y-%m-%d %H:%M:%S")
-
-        # các giá trị gửi đi cho dktt
-        vi_tri_hien_tai = AGVConfig.tin_hieu_nhan[AGVConfig.name_agv]["vi_tri_hien_tai"]
-        diem_tiep_theo = AGVConfig.tin_hieu_nhan[AGVConfig.name_agv]["diem_tiep_theo"]
-        trang_thai_agv_gui = AGVConfig.tin_hieu_nhan[AGVConfig.name_agv]["trang_thai_agv_gui"]
-        message_agv = AGVConfig.tin_hieu_nhan[AGVConfig.name_agv]["message"]
-        danh_sach_duong_di = AGVConfig.tin_hieu_nhan[AGVConfig.name_agv]["danh_sach_duong_di"]
-        da_den_dich = AGVConfig.tin_hieu_nhan[AGVConfig.name_agv]["da_den_dich"]
-
-        if len(AGVConfig.toa_do_agv_pixel) == 0:
-            toa_do_x = -1
-            toa_do_y = -1
-        else:
-            toa_do_x = AGVConfig.toa_do_agv_pixel[0]
-            toa_do_y = AGVConfig.toa_do_agv_pixel[1]
-
-        tin_hieu_gui = {AGVConfig.name_agv: {"vi_tri_hien_tai": vi_tri_hien_tai, 
-                                            "diem_tiep_theo": diem_tiep_theo,
-                                            'trang_thai_agv_gui': trang_thai_agv_gui, 
-                                            "message": message_agv,
-                                            "danh_sach_duong_di": danh_sach_duong_di,
-                                            "toa_do": {"x": toa_do_x, "y": toa_do_y},
-                                            "da_den_dich": da_den_dich
-                                            }
-                        }
+        AGVConfig.AGV_STATES[AGVConfig.name_agv]["dieu_khien_agv"] = tin_hieu_nhan[AGVConfig.name_agv]["dieu_khien_agv"]
+    
+        cap_nhat_thong_tin_agv() # cập nhật các thông tin khác của AGV nếu cần thiết
+        tin_hieu_gui = AGVConfig.AGV_STATES[AGVConfig.name_agv]["thong_tin_agv"]
 
         log_communication("nhan", thoi_gian_nhan_str, tin_hieu_nhan)
         log_communication("gui", thoi_gian_nhan_str, tin_hieu_gui)
@@ -889,17 +989,31 @@ def restore_backup():
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Lỗi khi khôi phục file: {str(e)}'}), 500
 
+def cap_nhat_thong_tin_agv():
+    AGVConfig.AGV_STATES[AGVConfig.name_agv]["thong_tin_agv"]["diem_cuoi"] = AGVConfig.AGV_STATES[AGVConfig.name_agv]["dieu_khien_agv"]["diem_cuoi"]
+
+
 
 
 _last_che_do_tao_ban_do = False
-
+t = time.time()
 def icp_simulation_loop():
     """
     Luồng mô phỏng xử lý ICP. 
     Vẽ trực tiếp lên AGVConfig.img_mapping để kiểm tra việc cập nhật bản đồ trên Web.
     """
-    global _last_che_do_tao_ban_do
+    global _last_che_do_tao_ban_do, t
     while True:
+        # # test góc agv huong_agv_do_img
+        # if time.time() - t > 0 and time.time() - t < 2:
+        #     AGVConfig.huong_agv_do_img = 5
+        # if time.time() - t >= 2 and time.time() - t < 4:
+        #     AGVConfig.huong_agv_do_img = 359
+        # if time.time() - t >= 4:
+            # t = time.time()
+            # AGVConfig.hien_thi_camera = False
+
+
         # Kiểm tra điều kiện tắt phần mềm và Web Server
         if tat_phan_mem():
             print("Yêu cầu tắt hệ thống nhận được. Đang đóng Web Server và các tiến trình...")
@@ -907,14 +1021,14 @@ def icp_simulation_loop():
             os._exit(0) # Thoát toàn bộ chương trình ngay lập tức
 
         # Watchdog cho điều khiển thủ công (An toàn mạng)
-        if AGVConfig.dieu_khien_agv.get("dieu_khien_thu_cong"):
+        if AGVConfig.dieu_khien_thu_cong.get("dieu_khien_thu_cong"):
             # Nếu quá 0.5 giây không nhận được "Heartbeat" từ Client, tự động dừng xe
             if time.time() - AGVConfig.last_manual_command_time > 0.5:
-                AGVConfig.dieu_khien_agv['tien'] = 0
-                AGVConfig.dieu_khien_agv['lui'] = 0
-                AGVConfig.dieu_khien_agv['trai'] = 0
-                AGVConfig.dieu_khien_agv['phai'] = 0
-        # print(print(config.AGVConfig.dieu_khien_agv))
+                AGVConfig.dieu_khien_thu_cong['tien'] = 0
+                AGVConfig.dieu_khien_thu_cong['lui'] = 0
+                AGVConfig.dieu_khien_thu_cong['trai'] = 0
+                AGVConfig.dieu_khien_thu_cong['phai'] = 0
+        # print(print(config.AGVConfig.dieu_khien_thu_cong))
 
         # Chạy trình thông dịch script tại mỗi vòng lặp 10Hz
         run_script_interpreter()

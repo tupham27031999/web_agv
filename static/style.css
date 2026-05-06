@@ -170,6 +170,36 @@ body {
     position: relative;
 }
 
+/* --- Camera PIP Overlay --- */
+.camera-overlay {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 280px;
+    background: #000;
+    border: 2px solid #34495e;
+    border-radius: 8px;
+    overflow: hidden;
+    z-index: 1500; /* Đè lên trên các layer của bản đồ */
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    pointer-events: none; /* Tránh cản trở việc click vào bản đồ nếu không cần thiết */
+}
+
+.camera-overlay img {
+    width: 100%;
+    display: block;
+    background-color: #2c3e50;
+}
+
+.camera-label {
+    background: rgba(44, 62, 80, 0.8);
+    color: white;
+    font-size: 0.75rem;
+    padding: 3px 10px;
+    text-align: left;
+    font-weight: 600;
+}
+
 /* --- Side Toolbar --- */
 .side-toolbar {
     width: 280px;
@@ -963,6 +993,12 @@ body {
 .script-item.active {
     background: #3498db;
     color: white;
+}
+
+/* Style cho script đang thực sự chạy ngầm */
+.script-item.running {
+    border-left: 5px solid #2ecc71; /* Viền xanh lá bên trái */
+    background: rgba(46, 204, 113, 0.1);
 }
 
 .editor-main {
